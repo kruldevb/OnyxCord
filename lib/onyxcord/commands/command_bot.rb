@@ -39,7 +39,7 @@ module OnyxCord::Commands
     #     complicated dynamic prefixes (e. g. based on server), or even something else entirely (suffixes, or most
     #     adventurous, infixes).
     # @option attributes [true, false] :advanced_functionality Whether to enable advanced functionality (very powerful
-    #   way to nest commands into chains, see https://github.com/shardlab/onyxcord/wiki/Commands#command-chain-syntax
+    #   way to nest commands into chains, see https://github.com/kruldevb/OnyxCord/wiki/Commands#command-chain-syntax
     #   for info. Default is false.
     # @option attributes [Symbol, Array<Symbol>, false] :help_command The name of the command that displays info for
     #   other commands. Use an array if you want to have aliases. Default is "help". If none should be created, use

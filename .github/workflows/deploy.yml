@@ -51,4 +51,4 @@ jobs:
           destination_dir: ${{ steps.set_folder.outputs.folder }}
           keep_files: true
           user_name: "GitHub Actions"
-          user_email: "ci-build@shardlab.dev"
+          user_email: "actions@github.com"

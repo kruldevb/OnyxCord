@@ -8,22 +8,22 @@ require 'onyxcord/webhooks/version'
 Gem::Specification.new do |spec|
   spec.name          = 'onyxcord'
   spec.version       = OnyxCord::VERSION
-  spec.authors       = %w[meew0 swarley]
+  spec.authors       = ['Gustavo S.']
   spec.email         = ['']
 
-  spec.summary       = 'Discord API for Ruby'
-  spec.description   = 'A Ruby implementation of the Discord (https://discord.com) API.'
-  spec.homepage      = 'https://github.com/shardlab/onyxcord'
+  spec.summary       = 'Discord API for Ruby with Components V2 support'
+  spec.description   = 'A Ruby implementation of the Discord API based on discordrb, updated for OnyxCord with raw-first core, modern modals, and Components V2.'
+  spec.homepage      = 'https://github.com/kruldevb/OnyxCord'
   spec.license       = 'MIT'
 
   spec.files         = `git ls-files -z`.split("\x0").reject { |f| f.match(%r{^(test|spec|features|examples|lib/onyxcord/webhooks)/}) }
   spec.bindir        = 'exe'
   spec.executables   = spec.files.grep(%r{^exe/}) { |f| File.basename(f) }
   spec.metadata = {
-    'bug_tracker_uri' => 'https://github.com/shardlab/onyxcord/issues',
-    'changelog_uri' => 'https://github.com/shardlab/onyxcord/blob/main/CHANGELOG.md',
-    'documentation_uri' => 'https://github.com/shardlab/onyxcord/wiki',
-    'source_code_uri' => 'https://github.com/shardlab/onyxcord',
+    'bug_tracker_uri' => 'https://github.com/kruldevb/OnyxCord/issues',
+    'changelog_uri' => 'https://github.com/kruldevb/OnyxCord/blob/main/CHANGELOG.md',
+    'documentation_uri' => 'https://github.com/kruldevb/OnyxCord#readme',
+    'source_code_uri' => 'https://github.com/kruldevb/OnyxCord',
     'rubygems_mfa_required' => 'true'
   }
   spec.require_paths = ['lib']

@@ -52,7 +52,7 @@ module OnyxCord::API
   # Generate a user agent identifying this requester as onyxcord.
   def user_agent
     # This particular string is required by the Discord devs.
-    required = "DiscordBot (https://github.com/shardlab/onyxcord, v#{OnyxCord::VERSION})"
+    required = "DiscordBot (https://github.com/kruldevb/OnyxCord, v#{OnyxCord::VERSION})"
     @bot_name ||= ''
 
     "#{required} rest-client/#{RestClient::VERSION} #{RUBY_ENGINE}/#{RUBY_VERSION}p#{RUBY_PATCHLEVEL} onyxcord/#{OnyxCord::VERSION} #{@bot_name}"

@@ -7,12 +7,12 @@ require 'onyxcord/webhooks/version'
 Gem::Specification.new do |spec|
   spec.name          = 'onyxcord-webhooks'
   spec.version       = OnyxCord::Webhooks::VERSION
-  spec.authors       = %w[meew0 swarley]
+  spec.authors       = ['Gustavo S.']
   spec.email         = ['']
 
   spec.summary       = 'Webhook client for onyxcord'
-  spec.description   = "A client for Discord's webhooks to fit alongside [onyxcord](https://rubygems.org/gems/onyxcord)."
-  spec.homepage      = 'https://github.com/shardlab/onyxcord'
+  spec.description   = "A webhook client for OnyxCord, a Ruby Discord library based on discordrb and updated with Components V2 support."
+  spec.homepage      = 'https://github.com/kruldevb/OnyxCord'
   spec.license       = 'MIT'
 
   spec.files         = `git ls-files -z lib/onyxcord/webhooks/`.split("\x0") + ['lib/onyxcord/webhooks.rb']
@@ -24,6 +24,9 @@ Gem::Specification.new do |spec|
 
   spec.required_ruby_version = '>= 3.3'
   spec.metadata = {
+    'bug_tracker_uri' => 'https://github.com/kruldevb/OnyxCord/issues',
+    'documentation_uri' => 'https://github.com/kruldevb/OnyxCord#readme',
+    'source_code_uri' => 'https://github.com/kruldevb/OnyxCord',
     'rubygems_mfa_required' => 'true'
   }
 end

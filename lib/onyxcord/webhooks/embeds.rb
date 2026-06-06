@@ -78,7 +78,7 @@ module OnyxCord::Webhooks
 
     # @see EmbedAuthor
     # @example Add a author to an embed
-    #   embed.author = OnyxCord::Webhooks::EmbedAuthor.new(name: 'meew0', url: 'https://github.com/meew0', icon_url: 'https://avatars2.githubusercontent.com/u/3662915?v=3&s=466')
+    #   embed.author = OnyxCord::Webhooks::EmbedAuthor.new(name: 'Gustavo S.', url: 'https://github.com/kruldevb')
     # @return [EmbedAuthor, nil] author for this embed
     attr_accessor :author
 
