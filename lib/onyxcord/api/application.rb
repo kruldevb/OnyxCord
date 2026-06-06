@@ -1,0 +1,316 @@
+# frozen_string_literal: true
+
+# API calls for slash commands.
+module OnyxCord::API::Application
+  module_function
+
+  # Get a list of global application commands.
+  # https://discord.com/developers/docs/interactions/slash-commands#get-global-application-commands
+  def get_global_commands(token, application_id)
+    OnyxCord::API.request(
+      :applications_aid_commands,
+      nil,
+      :get,
+      "#{OnyxCord::API.api_base}/applications/#{application_id}/commands",
+      Authorization: token
+    )
+  end
+
+  # Get a global application command by ID.
+  # https://discord.com/developers/docs/interactions/slash-commands#get-global-application-command
+  def get_global_command(token, application_id, command_id)
+    OnyxCord::API.request(
+      :applications_aid_commands_cid,
+      nil,
+      :get,
+      "#{OnyxCord::API.api_base}/applications/#{application_id}/commands/#{command_id}",
+      Authorization: token
+    )
+  end
+
+  # Create a global application command.
+  # https://discord.com/developers/docs/interactions/slash-commands#create-global-application-command
+  def create_global_command(token, application_id, name, description, options = [], default_permission = nil, type = 1, default_member_permissions = nil, contexts = nil, nsfw = false, integration_types = nil)
+    OnyxCord::API.request(
+      :applications_aid_commands,
+      nil,
+      :post,
+      "#{OnyxCord::API.api_base}/applications/#{application_id}/commands",
+      { name: name, description: description, options: options, default_permission: default_permission, type: type, default_member_permissions: default_member_permissions, contexts: contexts, nsfw: nsfw, integration_types: integration_types }.to_json,
+      Authorization: token,
+      content_type: :json
+    )
+  end
+
+  # Edit a global application command.
+  # https://discord.com/developers/docs/interactions/slash-commands#edit-global-application-command
+  def edit_global_command(token, application_id, command_id, name = nil, description = nil, options = nil, default_permission = nil, type = 1, default_member_permissions = nil, contexts = nil, nsfw = nil, integration_types = nil)
+    OnyxCord::API.request(
+      :applications_aid_commands_cid,
+      nil,
+      :patch,
+      "#{OnyxCord::API.api_base}/applications/#{application_id}/commands/#{command_id}",
+      { name: name, description: description, options: options, default_permission: default_permission, type: type, default_member_permissions: default_member_permissions, contexts: contexts, nsfw: nsfw, integration_types: integration_types }.compact.to_json,
+      Authorization: token,
+      content_type: :json
+    )
+  end
+
+  # Delete a global application command.
+  # https://discord.com/developers/docs/interactions/slash-commands#delete-global-application-command
+  def delete_global_command(token, application_id, command_id)
+    OnyxCord::API.request(
+      :applications_aid_commands_cid,
+      nil,
+      :delete,
+      "#{OnyxCord::API.api_base}/applications/#{application_id}/commands/#{command_id}",
+      Authorization: token
+    )
+  end
+
+  # Set global application commands in bulk.
+  # https://discord.com/developers/docs/interactions/slash-commands#bulk-overwrite-global-application-commands
+  def bulk_overwrite_global_commands(token, application_id, commands)
+    OnyxCord::API.request(
+      :applications_aid_commands,
+      nil,
+      :put,
+      "#{OnyxCord::API.api_base}/applications/#{application_id}/commands",
+      commands.to_json,
+      Authorization: token,
+      content_type: :json
+    )
+  end
+
+  # Get a guild's commands for an application.
+  # https://discord.com/developers/docs/interactions/slash-commands#get-guild-application-commands
+  def get_guild_commands(token, application_id, guild_id)
+    OnyxCord::API.request(
+      :applications_aid_guilds_gid_commands,
+      guild_id,
+      :get,
+      "#{OnyxCord::API.api_base}/applications/#{application_id}/guilds/#{guild_id}/commands",
+      Authorization: token
+    )
+  end
+
+  # Get a guild command by ID.
+  # https://discord.com/developers/docs/interactions/slash-commands#get-guild-application-command
+  def get_guild_command(token, application_id, guild_id, command_id)
+    OnyxCord::API.request(
+      :applications_aid_guilds_gid_commands_cid,
+      guild_id,
+      :get,
+      "#{OnyxCord::API.api_base}/applications/#{application_id}/guilds/#{guild_id}/commands/#{command_id}",
+      Authorization: token
+    )
+  end
+
+  # Create an application command for a guild.
+  # https://discord.com/developers/docs/interactions/slash-commands#create-guild-application-command
+  def create_guild_command(token, application_id, guild_id, name, description, options = nil, default_permission = nil, type = 1, default_member_permissions = nil, contexts = nil, nsfw = false)
+    OnyxCord::API.request(
+      :applications_aid_guilds_gid_commands,
+      guild_id,
+      :post,
+      "#{OnyxCord::API.api_base}/applications/#{application_id}/guilds/#{guild_id}/commands",
+      { name: name, description: description, options: options, default_permission: default_permission, type: type, default_member_permissions: default_member_permissions, contexts: contexts, nsfw: nsfw }.to_json,
+      Authorization: token,
+      content_type: :json
+    )
+  end
+
+  # Edit an application command for a guild.
+  # https://discord.com/developers/docs/interactions/slash-commands#edit-guild-application-command
+  def edit_guild_command(token, application_id, guild_id, command_id, name = nil, description = nil, options = nil, default_permission = nil, type = 1, default_member_permissions = nil, contexts = nil, nsfw = nil)
+    OnyxCord::API.request(
+      :applications_aid_guilds_gid_commands_cid,
+      guild_id,
+      :patch,
+      "#{OnyxCord::API.api_base}/applications/#{application_id}/guilds/#{guild_id}/commands/#{command_id}",
+      { name: name, description: description, options: options, default_permission: default_permission, type: type, default_member_permissions: default_member_permissions, contexts: contexts, nsfw: nsfw }.compact.to_json,
+      Authorization: token,
+      content_type: :json
+    )
+  end
+
+  # Delete an application command for a guild.
+  # https://discord.com/developers/docs/interactions/slash-commands#delete-guild-application-command
+  def delete_guild_command(token, application_id, guild_id, command_id)
+    OnyxCord::API.request(
+      :applications_aid_guilds_gid_commands_cid,
+      guild_id,
+      :delete,
+      "#{OnyxCord::API.api_base}/applications/#{application_id}/guilds/#{guild_id}/commands/#{command_id}",
+      Authorization: token
+    )
+  end
+
+  # Set guild commands in bulk.
+  # https://discord.com/developers/docs/interactions/slash-commands#bulk-overwrite-guild-application-commands
+  def bulk_overwrite_guild_commands(token, application_id, guild_id, commands)
+    OnyxCord::API.request(
+      :applications_aid_guilds_gid_commands,
+      guild_id,
+      :put,
+      "#{OnyxCord::API.api_base}/applications/#{application_id}/guilds/#{guild_id}/commands",
+      commands.to_json,
+      Authorization: token,
+      content_type: :json
+    )
+  end
+
+  # Get the permissions for a specific guild command.
+  # https://discord.com/developers/docs/interactions/slash-commands#get-application-command-permissions
+  def get_guild_command_permissions(token, application_id, guild_id)
+    OnyxCord::API.request(
+      :applications_aid_guilds_gid_commands_permissions,
+      guild_id,
+      :get,
+      "#{OnyxCord::API.api_base}/applications/#{application_id}/guilds/#{guild_id}/commands/permissions",
+      Authorization: token
+    )
+  end
+
+  # Edit the permissions for a specific guild command.
+  # https://discord.com/developers/docs/interactions/slash-commands#edit-application-command-permissions
+  def edit_guild_command_permissions(token, application_id, guild_id, command_id, permissions)
+    OnyxCord::API.request(
+      :applications_aid_guilds_gid_commands_cid_permissions,
+      guild_id,
+      :put,
+      "#{OnyxCord::API.api_base}/applications/#{application_id}/guilds/#{guild_id}/commands/#{command_id}/permissions",
+      { permissions: permissions }.to_json,
+      Authorization: token,
+      content_type: :json
+    )
+  end
+
+  # Edit permissions for all commands in a guild.
+  # https://discord.com/developers/docs/interactions/slash-commands#batch-edit-application-command-permissions
+  def batch_edit_command_permissions(token, application_id, guild_id, permissions)
+    OnyxCord::API.request(
+      :applications_aid_guilds_gid_commands_cid_permissions,
+      guild_id,
+      :put,
+      "#{OnyxCord::API.api_base}/applications/#{application_id}/guilds/#{guild_id}/commands/permissions",
+      permissions.to_json,
+      Authorization: token,
+      content_type: :json
+    )
+  end
+
+  # Get all of the permissions for the commands in a guild.
+  # https://discord.com/developers/docs/interactions/application-commands#get-guild-application-command-permissions
+  def get_guild_application_command_permissions(token, application_id, guild_id)
+    OnyxCord::API.request(
+      :applications_aid_guilds_gid_commands_permissions,
+      guild_id,
+      :get,
+      "#{OnyxCord::API.api_base}/applications/#{application_id}/guilds/#{guild_id}/commands/permissions",
+      Authorization: token
+    )
+  end
+
+  # Get the permissions for a specific command in a guild.
+  # https://discord.com/developers/docs/interactions/application-commands#get-application-command-permissions
+  def get_application_command_permissions(token, application_id, guild_id, command_id)
+    OnyxCord::API.request(
+      :applications_aid_guilds_gid_commands_cid_permissions,
+      guild_id,
+      :get,
+      "#{OnyxCord::API.api_base}/applications/#{application_id}/guilds/#{guild_id}/commands/#{command_id}/permissions",
+      Authorization: token
+    )
+  end
+
+  # Get a list of application emojis.
+  # https://discord.com/developers/docs/resources/emoji#list-application-emojis
+  def list_application_emojis(token, application_id)
+    OnyxCord::API.request(
+      :applications_aid_emojis,
+      application_id,
+      :get,
+      "#{OnyxCord::API.api_base}/applications/#{application_id}/emojis",
+      Authorization: token
+    )
+  end
+
+  # Get an application emoji by ID.
+  # https://discord.com/developers/docs/resources/emoji#get-application-emoji
+  def get_application_emoji(token, application_id, emoji_id)
+    OnyxCord::API.request(
+      :applications_aid_emojis_eid,
+      application_id,
+      :get,
+      "#{OnyxCord::API.api_base}/applications/#{application_id}/emojis/#{emoji_id}",
+      Authorization: token
+    )
+  end
+
+  # Create an application emoji.
+  # https://discord.com/developers/docs/resources/emoji#create-application-emoji
+  def create_application_emoji(token, application_id, name, image)
+    OnyxCord::API.request(
+      :applications_aid_emojis,
+      application_id,
+      :post,
+      "#{OnyxCord::API.api_base}/applications/#{application_id}/emojis",
+      { name: name, image: image }.to_json,
+      Authorization: token,
+      content_type: :json
+    )
+  end
+
+  # Edit an application emoji.
+  # https://discord.com/developers/docs/resources/emoji#modify-application-emoji
+  def edit_application_emoji(token, application_id, emoji_id, name)
+    OnyxCord::API.request(
+      :applications_aid_emojis_eid,
+      application_id,
+      :patch,
+      "#{OnyxCord::API.api_base}/applications/#{application_id}/emojis/#{emoji_id}",
+      { name: name }.to_json,
+      Authorization: token,
+      content_type: :json
+    )
+  end
+
+  # Delete an application emoji.
+  # https://discord.com/developers/docs/resources/emoji#delete-application-emoji
+  def delete_application_emoji(token, application_id, emoji_id)
+    OnyxCord::API.request(
+      :applications_aid_emojis_eid,
+      application_id,
+      :delete,
+      "#{OnyxCord::API.api_base}/applications/#{application_id}/emojis/#{emoji_id}",
+      Authorization: token
+    )
+  end
+
+  # Edit the current application for the requesting bot user.
+  # https://discord.com/developers/docs/resources/application#edit-current-application
+  def update_current_application(token, custom_install_url: :undef, description: :undef, role_connections_verification_url: :undef, install_params: :undef, integration_types_config: :undef, flags: :undef, interactions_endpoint_url: :undef, tags: :undef, event_webhooks_url: :undef, event_webhooks_status: :undef, event_webhooks_types: :undef, icon: :undef, cover_image: :undef)
+    OnyxCord::API.request(
+      :applications_me,
+      nil,
+      :patch,
+      "#{OnyxCord::API.api_base}/applications/@me",
+      { custom_install_url:, description:, role_connections_verification_url:, install_params:, integration_types_config:, flags:, interactions_endpoint_url:, tags:, event_webhooks_url:, event_webhooks_status:, event_webhooks_types:, icon:, cover_image: }.reject { |_, value| value == :undef }.to_json,
+      Authorization: token,
+      content_type: :json
+    )
+  end
+
+  # Get a list of role connection metadata records.
+  # https://discord.com/developers/docs/resources/application-role-connection-metadata#get-application-role-connection-metadata-records
+  def get_application_role_connection_metadata_records(token, application_id)
+    OnyxCord::API.request(
+      :applications_aid_role_connections_metadata,
+      nil,
+      :get,
+      "#{OnyxCord::API.api_base}/applications/#{application_id}/role-connections/metadata",
+      Authorization: token
+    )
+  end
+end

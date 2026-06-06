@@ -1,0 +1,129 @@
+plugins:
+  - rubocop-performance
+  - rubocop-rake
+
+inherit_mode:
+  merge:
+    - AllowedNames
+
+AllCops:
+  NewCops: enable
+  TargetRubyVersion: 3.3
+
+# Disable line length checks
+Layout/LineLength:
+  Enabled: false
+
+# TODO: Larger refactor
+Lint/MissingSuper:
+  Enabled: false
+
+# Allow 'Pokémon-style' exception handling
+Lint/RescueException:
+  Enabled: false
+
+# Disable all metrics.
+Metrics:
+  Enabled: false
+
+# Allow some common and/or obvious short method params
+Naming/MethodParameterName:
+  AllowedNames:
+    - e
+
+# Ignore `eval` in the examples folder
+Security/Eval:
+  Exclude:
+    - examples/**/*
+
+# https://stackoverflow.com/q/4763121/
+Style/Alias:
+  Enabled: false
+
+# Had to disable this globally because it's being silently autocorrected even with local disable comments?
+Style/BisectedAttrAccessor:
+  Enabled: false
+
+# Prefer compact module/class defs
+Style/ClassAndModuleChildren:
+  Enabled: false
+
+# So RuboCop doesn't complain about application IDs
+Style/NumericLiterals:
+  Exclude:
+    - examples/**/*
+
+# TODO: Requires breaking changes
+Style/OptionalBooleanParameter:
+  Enabled: false
+
+# Prefer explicit arguments in case global variables like `$;` or `$,` are changed
+Style/RedundantArgument:
+  Enabled: false
+
+# Prefer |m, e| for the `reduce` block arguments
+Style/SingleLineBlockParams:
+  Methods:
+    - reduce: [m, e]
+    - inject: [m, e]
+
+###################################
+## NEW COPS TO MAKE DECISIONS ON ##
+###################################
+
+# TODO: Decide how you want to handle this:
+# https://rubydoc.info/gems/rubocop/RuboCop/Cop/Style/HashSyntax
+Style/HashSyntax:
+  EnforcedShorthandSyntax: either
+
+Style/ArgumentsForwarding:
+  Enabled: false
+
+Performance/StringIdentifierArgument:
+  Enabled: false
+
+Style/ComparableClamp:
+  Enabled: false
+
+Style/SuperArguments:
+  Enabled: false
+
+Naming/BlockForwarding:
+  Enabled: false
+
+Style/RedundantSelfAssignmentBranch:
+  Enabled: false
+
+Performance/MapCompact:
+  Enabled: false
+
+Gemspec/RequiredRubyVersion:
+  Enabled: false
+
+Gemspec/DevelopmentDependencies:
+  Enabled: false
+
+Style/RedundantReturn:
+  Enabled: false
+
+Style/RedundantParentheses:
+  Enabled: false
+
+Layout/EndOfLine:
+  Enabled: true
+  EnforcedStyle: lf
+
+# This will probably be a breaking change, but should happen
+Style/ReturnNilInPredicateMethodDefinition:
+  Enabled: false
+
+# FIXME: Disabled due to breaking tests, should probably refactor the code instead
+Style/SafeNavigation:
+  Enabled: false
+
+Style/Documentation:
+  Enabled: true
+
+Style/IfUnlessModifier:
+  Exclude:
+    - lib/onyxcord/data/role.rb
