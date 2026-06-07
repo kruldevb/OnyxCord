@@ -1,14 +1,12 @@
 # frozen_string_literal: true
 
-lib = File.expand_path('lib', __dir__)
-$LOAD_PATH.unshift(lib) unless $LOAD_PATH.include?(lib)
-require 'onyxcord/webhooks/version'
+require_relative 'lib/onyxcord/webhooks/version'
 
 Gem::Specification.new do |spec|
   spec.name          = 'onyxcord-webhooks'
   spec.version       = OnyxCord::Webhooks::VERSION
-  spec.authors       = ['Gustavo S.']
-  spec.email         = ['']
+  spec.authors       = ['kruldev']
+  spec.email         = ['seuemail@example.com']
 
   spec.summary       = 'Webhook client for onyxcord'
   spec.description   = "A webhook client for OnyxCord, a Ruby Discord library based on discordrb and updated with Components V2 support."

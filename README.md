@@ -54,11 +54,16 @@ require 'onyxcord'
 
 bot = OnyxCord::Bot.new(
   token: ENV.fetch('DISCORD_TOKEN'),
-  intents: %i[servers server_messages direct_messages message_content]
+  intents: %i[servers server_messages direct_messages message_content],
+  mode: :hybrid
 )
 
 bot.message(content: 'ping') do |event|
   event.respond!(content: 'pong')
+end
+
+bot.application_command(:ping) do |event|
+  event.respond(content: 'Pong via Slash Command!')
 end
 
 bot.run
@@ -98,7 +103,8 @@ end
 bot.run
 ```
 
-Use `mode: :raw` quando quiser evitar criação de objetos pesados por padrão. Use `mode: :object` quando quiser o caminho mais compatível com a API tradicional.
+Use `mode: :raw` quando quiser evitar a criação de objetos pesados por padrão e processar apenas os pacotes de Gateway diretamente. 
+**Importante:** O `OnyxCord` roda em `:raw` por padrão. Se você quiser usar os comandos de aplicação normais (`application_command`), modais e outros eventos em objeto, **você deve inicializar o bot com `mode: :hybrid`** ou `mode: :object`!
 
 ## Components V2
 

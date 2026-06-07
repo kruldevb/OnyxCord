@@ -1677,21 +1677,28 @@ module OnyxCord
 
         raise_event(event)
       when :INTERACTION_CREATE
+        OnyxCord::LOGGER.info(">>> INTERACTION_CREATE received inside bot.rb! type: #{data['type']}")
         event = InteractionCreateEvent.new(data, self)
         raise_event(event)
+        OnyxCord::LOGGER.info(">>> raised InteractionCreateEvent successfully")
 
         case data['type']
         when Interaction::TYPES[:command]
+          OnyxCord::LOGGER.info(">>> creating ApplicationCommandEvent")
           event = ApplicationCommandEvent.new(data, self)
+          OnyxCord::LOGGER.info(">>> spawned Thread to execute command")
 
           Thread.new(event) do |evt|
             Thread.current[:onyxcord_name] = "it-#{evt.interaction.id}"
 
             begin
-              debug("Executing application command #{evt.command_name}:#{evt.command_id}")
-
-              @application_commands[evt.command_name]&.call(evt)
-            rescue StandardError => e
+              OnyxCord::LOGGER.info(">>> Executing application command #{evt.command_name}:#{evt.command_id}")
+              handler = @application_commands[evt.command_name]
+              OnyxCord::LOGGER.info(">>> Handler found? #{!handler.nil?}")
+              handler&.call(evt)
+              OnyxCord::LOGGER.info(">>> Handler call finished")
+            rescue Exception => e
+              OnyxCord::LOGGER.error(">>> FATAL EXCEPTION IN THREAD: #{e.class}: #{e.message}")
               log_exception(e)
             end
           end
