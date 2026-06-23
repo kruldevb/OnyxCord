@@ -494,45 +494,63 @@ class OnyxCord::Webhooks::View
 
   # Add a row component to the view.
   # @see RowBuilder#initialize
-  def row(...)
-    @components << RowBuilder.new(...)
+  def row(id: nil, &block)
+    builder = RowBuilder.new(id: id)
+    @components << builder
+    yield builder if block_given?
+    builder
   end
 
   # Add a file component to the view.
   # @see FileBuilder#initialize
   def file(...)
-    @components << FileBuilder.new(...)
+    builder = FileBuilder.new(...)
+    @components << builder
+    builder
   end
 
   alias_method :file_display, :file
 
   # Add a section component to the view.
   # @see SectionBuilder#initialize
-  def section(...)
-    @components << SectionBuilder.new(...)
+  def section(id: nil, &block)
+    builder = SectionBuilder.new(id: id)
+    @components << builder
+    yield builder if block_given?
+    builder
   end
 
   # Add a separator component to the view.
   # @see SeparatorBuilder#initialize
   def separator(...)
-    @components << SeparatorBuilder.new(...)
+    builder = SeparatorBuilder.new(...)
+    @components << builder
+    builder
   end
 
   # Add a container component to the view.
   # @see ContainerBuilder#initialize
-  def container(...)
-    @components << ContainerBuilder.new(...)
+  def container(id: nil, color: nil, colour: nil, spoiler: false, &block)
+    builder = ContainerBuilder.new(id: id, color: color, colour: colour, spoiler: spoiler)
+    @components << builder
+    yield builder if block_given?
+    builder
   end
 
   # Add a text display component to the view.
   # @see TextDisplayBuilder#initialize
   def text_display(...)
-    @components << TextDisplayBuilder.new(...)
+    builder = TextDisplayBuilder.new(...)
+    @components << builder
+    builder
   end
 
   # Add a media gallery component to the view.
   # @see MediaGalleryBuilder#initialize
-  def media_gallery(...)
-    @components << MediaGalleryBuilder.new(...)
+  def media_gallery(id: nil, &block)
+    builder = MediaGalleryBuilder.new(id: id)
+    @components << builder
+    yield builder if block_given?
+    builder
   end
 end

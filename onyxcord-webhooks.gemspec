@@ -5,8 +5,8 @@ require_relative 'lib/onyxcord/webhooks/version'
 Gem::Specification.new do |spec|
   spec.name          = 'onyxcord-webhooks'
   spec.version       = OnyxCord::Webhooks::VERSION
-  spec.authors       = ['kruldev']
-  spec.email         = ['seuemail@example.com']
+  spec.authors       = ['Gustavo Silva']
+  spec.email         = ['gustavosilva8kt@gmail.com']
 
   spec.summary       = 'Webhook client for onyxcord'
   spec.description   = "A webhook client for OnyxCord, a Ruby Discord library based on discordrb and updated with Components V2 support."

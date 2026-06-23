@@ -58,6 +58,70 @@ describe 'Components V2 support' do
       )
       expect(view.flags(4)).to eq(flag | 4)
     end
+
+    it 'keeps top-level components added during a container block after the container' do
+      view = described_class.new do |v|
+        v.container(color: '#2b2d31') do |container|
+          container.text_display(content: 'Painel')
+
+          v.row do |row|
+            row.button(style: :secondary, label: 'Voltar', custom_id: 'voltar1')
+          end
+
+          v.container(color: '#313338') do |next_container|
+            next_container.text_display(content: 'Segundo container')
+          end
+        end
+      end
+
+      expect(view.to_a).to eq(
+        [
+          {
+            type: 17,
+            accent_color: 0x2b2d31,
+            spoiler: false,
+            components: [{ type: 10, content: 'Painel' }]
+          },
+          {
+            type: 1,
+            components: [{ type: 2, label: 'Voltar', style: 2, custom_id: 'voltar1' }]
+          },
+          {
+            type: 17,
+            accent_color: 0x313338,
+            spoiler: false,
+            components: [{ type: 10, content: 'Segundo container' }]
+          }
+        ]
+      )
+    end
+
+    it 'keeps top-level components in the order they are written' do
+      view = described_class.new do |v|
+        v.row do |row|
+          row.button(style: :secondary, label: 'Voltar', custom_id: 'voltar1')
+        end
+
+        v.container(color: '#2b2d31') do |container|
+          container.text_display(content: 'Painel')
+        end
+      end
+
+      expect(view.to_a).to eq(
+        [
+          {
+            type: 1,
+            components: [{ type: 2, label: 'Voltar', style: 2, custom_id: 'voltar1' }]
+          },
+          {
+            type: 17,
+            accent_color: 0x2b2d31,
+            spoiler: false,
+            components: [{ type: 10, content: 'Painel' }]
+          }
+        ]
+      )
+    end
   end
 
   describe OnyxCord::Webhooks::Builder do
