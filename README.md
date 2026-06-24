@@ -103,8 +103,21 @@ end
 bot.run
 ```
 
-Use `mode: :raw` quando quiser evitar a criação de objetos pesados por padrão e processar apenas os pacotes de Gateway diretamente. 
-**Importante:** O `OnyxCord` roda em `:raw` por padrão. Se você quiser usar os comandos de aplicação normais (`application_command`), modais e outros eventos em objeto, **você deve inicializar o bot com `mode: :hybrid`** ou `mode: :object`!
+Use `mode: :raw` quando quiser evitar a criação de objetos pesados e processar apenas os pacotes de Gateway diretamente.
+**Importante:** O `OnyxCord` roda em `:hybrid` por padrão, entao comandos de aplicação normais (`application_command`), modais e outros eventos em objeto ja funcionam sem precisar informar `mode: :hybrid`.
+
+## Performance e memória
+
+Para limitar crescimento de fila quando handlers ficam lentos, configure um tamanho maximo para a fila do executor:
+
+```ruby
+OnyxCord.configure do |config|
+  config.event_workers = 4
+  config.event_queue_size = 1_000
+end
+```
+
+Em bots grandes, use `bot.runtime_stats`, `bot.cache_stats` e `bot.prune_cache!` para acompanhar e limpar caches em runtime.
 
 ## Components V2
 

@@ -20,12 +20,12 @@ module OnyxCord
 
     # Fixed-size worker pool for event handlers.
     class Pool
-      attr_reader :threads
+      attr_reader :threads, :queue
 
-      def initialize(size:)
+      def initialize(size:, queue_size: nil)
         raise ArgumentError, 'Pool size must be greater than zero' unless size.positive?
 
-        @queue = Queue.new
+        @queue = queue_size ? SizedQueue.new(queue_size) : Queue.new
         @closed = false
         @threads = Array.new(size) do |index|
           Thread.new do
@@ -40,6 +40,10 @@ module OnyxCord
         raise 'Event executor has been shut down' if @closed
 
         @queue << block
+      end
+
+      def queue_size
+        @queue.size
       end
 
       def shutdown
@@ -66,12 +70,12 @@ module OnyxCord
 
     module_function
 
-    def build(type, workers:)
+    def build(type, workers:, queue_size: nil)
       case type
       when :inline
         Inline.new
       when :pool
-        Pool.new(size: workers)
+        Pool.new(size: workers, queue_size: queue_size)
       else
         raise ArgumentError, "Unknown event executor: #{type.inspect}"
       end

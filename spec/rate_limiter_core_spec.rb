@@ -74,4 +74,24 @@ describe OnyxCord::RateLimiter::Rest do
     expect(waits.first.first).to eq(2.0)
     expect(waits.first.last).to eq(limiter.instance_variable_get(:@global_mutex))
   end
+
+  it 'reports and prunes stale bucket bookkeeping' do
+    now = Time.at(100)
+    limiter = described_class.new(clock: -> { now }, entry_ttl: 10, prune_interval: nil)
+
+    limiter.record_response(
+      :create_message,
+      123,
+      x_ratelimit_bucket: 'abc',
+      x_ratelimit_remaining: '1'
+    )
+
+    expect(limiter.stats[:route_buckets]).to eq(1)
+    expect(limiter.stats[:tracked_keys]).to eq(2)
+
+    now = Time.at(200)
+
+    expect(limiter.prune!).to eq(2)
+    expect(limiter.stats).to include(route_buckets: 0, bucket_mutexes: 0, tracked_keys: 0)
+  end
 end

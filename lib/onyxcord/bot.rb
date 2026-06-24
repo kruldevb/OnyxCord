@@ -132,13 +132,14 @@ module OnyxCord
       type: nil, name: '', fancy_log: false, suppress_ready: false, parse_self: false,
       shard_id: nil, num_shards: nil, redact_token: true, ignore_bots: false,
       compress_mode: :large, intents: :minimal,
-      mode: nil, cache: nil, event_executor: nil, event_workers: nil
+      mode: nil, cache: nil, event_executor: nil, event_workers: nil, event_queue_size: nil
     )
       config = OnyxCord.configuration
       @mode = config.normalize_mode(mode)
       @cache_policy = config.normalize_cache(cache)
       executor_type = config.normalize_event_executor(event_executor)
       executor_workers = config.normalize_event_workers(event_workers)
+      executor_queue_size = config.normalize_event_queue_size(event_queue_size)
 
       LOGGER.mode = log_mode
       LOGGER.token = token if redact_token
@@ -185,7 +186,7 @@ module OnyxCord
 
       @current_thread = 0
       @current_thread_mutex = Mutex.new
-      @event_executor = EventExecutor.build(executor_type, workers: executor_workers)
+      @event_executor = EventExecutor.build(executor_type, workers: executor_workers, queue_size: executor_queue_size)
       @event_threads = @event_executor.threads
 
       @status = :online
@@ -710,6 +711,16 @@ module OnyxCord
     # @see Logger#mode=
     def mode=(new_mode)
       LOGGER.mode = new_mode
+    end
+
+    def runtime_stats
+      {
+        mode: @mode,
+        cache: cache_stats,
+        event_executor: @event_executor.class.name,
+        event_threads: @event_threads&.count(&:alive?) || 0,
+        event_queue_size: @event_executor.respond_to?(:queue_size) ? @event_executor.queue_size : 0
+      }
     end
 
     # Prevents the READY packet from being printed regardless of debug mode.
@@ -1677,30 +1688,19 @@ module OnyxCord
 
         raise_event(event)
       when :INTERACTION_CREATE
-        OnyxCord::LOGGER.info(">>> INTERACTION_CREATE received inside bot.rb! type: #{data['type']}")
         event = InteractionCreateEvent.new(data, self)
         raise_event(event)
-        OnyxCord::LOGGER.info(">>> raised InteractionCreateEvent successfully")
 
         case data['type']
         when Interaction::TYPES[:command]
-          OnyxCord::LOGGER.info(">>> creating ApplicationCommandEvent")
           event = ApplicationCommandEvent.new(data, self)
-          OnyxCord::LOGGER.info(">>> spawned Thread to execute command")
 
-          Thread.new(event) do |evt|
-            Thread.current[:onyxcord_name] = "it-#{evt.interaction.id}"
-
-            begin
-              OnyxCord::LOGGER.info(">>> Executing application command #{evt.command_name}:#{evt.command_id}")
-              handler = @application_commands[evt.command_name]
-              OnyxCord::LOGGER.info(">>> Handler found? #{!handler.nil?}")
-              handler&.call(evt)
-              OnyxCord::LOGGER.info(">>> Handler call finished")
-            rescue Exception => e
-              OnyxCord::LOGGER.error(">>> FATAL EXCEPTION IN THREAD: #{e.class}: #{e.message}")
-              log_exception(e)
-            end
+          @event_executor.post do
+            Thread.current[:onyxcord_name] = next_event_thread_name('it')
+            handler = @application_commands[event.command_name]
+            handler&.call(event)
+          rescue StandardError => e
+            log_exception(e)
           end
         when Interaction::TYPES[:component]
           case data['data']['component_type']

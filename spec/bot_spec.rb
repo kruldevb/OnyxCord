@@ -111,6 +111,7 @@ describe OnyxCord::Bot do
       let(:old_activity) { instance_double(OnyxCord::Activity, 'old_activity', name: 'Old Activity') }
 
       before do
+        bot.instance_variable_set(:@users, {})
         allow(bot.instance_variable_get(:@users)).to receive(:[]).with(user.id).and_return(user)
         allow(bot).to receive(:update_presence).and_return(nil)
         allow(bot).to receive(:raise_event).with(kind_of(OnyxCord::Events::PresenceEvent))
@@ -181,6 +182,34 @@ describe OnyxCord::Bot do
         bot.send(:handle_dispatch, :MESSAGE_CREATE, message_fixture)
 
         expect(bot).to_not have_received(:raise_event).with(instance_of(OnyxCord::Events::ChannelCreateEvent))
+      end
+    end
+
+    context 'when handling an INTERACTION_CREATE command' do
+      let(:interaction_data) do
+        {
+          'id' => '1000',
+          'application_id' => '2000',
+          'type' => OnyxCord::Interaction::TYPES[:command],
+          'token' => 'interaction-token',
+          'version' => 1,
+          'data' => {
+            'id' => '3000',
+            'name' => 'ping',
+            'options' => []
+          }
+        }
+      end
+
+      it 'executes the application command through the configured event executor' do
+        handled = false
+        bot.instance_variable_set(:@event_executor, OnyxCord::EventExecutor::Inline.new)
+        bot.instance_variable_set(:@application_commands, { ping: proc { handled = true } })
+        allow(bot).to receive(:raise_event)
+
+        bot.send(:handle_dispatch, :INTERACTION_CREATE, interaction_data)
+
+        expect(handled).to be(true)
       end
     end
   end

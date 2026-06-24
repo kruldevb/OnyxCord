@@ -67,6 +67,10 @@ module OnyxCord::API
     @rate_limiter ||= OnyxCord::RateLimiter::Rest.new
   end
 
+  def rate_limiter_stats
+    rate_limiter.stats
+  end
+
   # Wait a specified amount of time synchronised with the specified mutex.
   def sync_wait(time, mutex)
     mutex.synchronize { sleep time }
@@ -151,7 +155,7 @@ module OnyxCord::API
           sleep(body['retry_after'])
         end
 
-        return request(*key, type, *attributes)
+        return request(key, major_parameter, type, *attributes)
       end
     end
 

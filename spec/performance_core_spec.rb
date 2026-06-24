@@ -20,11 +20,26 @@ describe 'OnyxCord performance core' do
   end
 
   describe '.configure' do
+    it 'uses hybrid mode by default' do
+      bot = OnyxCord::Bot.new(token: 'fake_token', event_executor: :inline)
+
+      expect(bot.mode).to eq(:hybrid)
+    end
+
+    it 'sets an optional event queue size for pool executors' do
+      bot = OnyxCord::Bot.new(token: 'fake_token', event_queue_size: 3)
+
+      expect(bot.event_executor.queue).to be_a(SizedQueue)
+      expect(bot.event_executor.queue.max).to eq(3)
+      bot.event_executor.shutdown
+    end
+
     it 'sets global defaults for new bots' do
       OnyxCord.configure do |config|
         config.mode = :hybrid
         config.cache = :minimal
         config.event_executor = :inline
+        config.event_queue_size = 5
       end
 
       bot = OnyxCord::Bot.new(token: 'fake_token')
@@ -39,7 +54,7 @@ describe 'OnyxCord performance core' do
   describe '#raw' do
     it 'matches raw dispatches by symbol' do
       received = []
-      bot = build_bot
+      bot = build_bot(mode: :raw)
 
       bot.raw(:MESSAGE_CREATE) { |payload| received << payload }
       bot.send(:dispatch_packet, packet('MESSAGE_CREATE', 'content' => 'hello'))
@@ -49,7 +64,7 @@ describe 'OnyxCord performance core' do
 
     it 'matches raw dispatches by string' do
       received = []
-      bot = build_bot
+      bot = build_bot(mode: :raw)
 
       bot.raw('MESSAGE_CREATE') { |payload| received << payload }
       bot.send(:dispatch_packet, packet('MESSAGE_CREATE'))
@@ -59,7 +74,7 @@ describe 'OnyxCord performance core' do
 
     it 'matches raw dispatches by regexp' do
       received = []
-      bot = build_bot
+      bot = build_bot(mode: :raw)
 
       bot.raw(/MESSAGE_/) { |payload| received << payload }
       bot.send(:dispatch_packet, packet('MESSAGE_DELETE'))
@@ -69,7 +84,7 @@ describe 'OnyxCord performance core' do
 
     it 'matches all raw dispatches without a filter' do
       received = []
-      bot = build_bot
+      bot = build_bot(mode: :raw)
 
       bot.raw { |payload| received << payload }
       bot.send(:dispatch_packet, packet('GUILD_CREATE'))
@@ -133,6 +148,28 @@ describe 'OnyxCord performance core' do
       expect(bot.instance_variable_get(:@servers)).to eq({})
       expect(bot.instance_variable_get(:@users)).to eq({})
       expect(bot.instance_variable_get(:@channels)).to be_nil
+    end
+
+    it 'reports and prunes cache stores' do
+      bot = build_bot(cache: :full)
+      bot.instance_variable_get(:@users)[1] = :user
+      bot.instance_variable_get(:@channels)[2] = :channel
+
+      expect(bot.cache_stats).to include(users: 1, channels: 1)
+      expect(bot.prune_cache!(:users)).to eq(users: 1)
+      expect(bot.cache_stats).to include(users: 0, channels: 1)
+    end
+
+    it 'reports runtime stats' do
+      bot = build_bot(cache: :minimal)
+
+      expect(bot.runtime_stats).to include(
+        mode: :hybrid,
+        event_executor: 'OnyxCord::EventExecutor::Inline',
+        event_threads: 0,
+        event_queue_size: 0
+      )
+      expect(bot.runtime_stats[:cache]).to include(servers: 0, channels: 0)
     end
   end
 

@@ -43,13 +43,14 @@ module OnyxCord
       }
     }.freeze
 
-    attr_accessor :mode, :cache, :event_executor, :event_workers
+    attr_accessor :mode, :cache, :event_executor, :event_workers, :event_queue_size
 
     def initialize
-      @mode = :raw
+      @mode = :hybrid
       @cache = :none
       @event_executor = :pool
       @event_workers = 4
+      @event_queue_size = nil
     end
 
     def dup
@@ -58,6 +59,7 @@ module OnyxCord
       copy.cache = @cache.is_a?(Hash) ? @cache.dup : @cache
       copy.event_executor = @event_executor
       copy.event_workers = @event_workers
+      copy.event_queue_size = @event_queue_size
       copy
     end
 
@@ -80,6 +82,15 @@ module OnyxCord
       raise ArgumentError, 'event_workers must be greater than zero' unless workers.positive?
 
       workers
+    end
+
+    def normalize_event_queue_size(value = @event_queue_size)
+      return nil if value.nil?
+
+      size = Integer(value)
+      raise ArgumentError, 'event_queue_size must be greater than zero' unless size.positive?
+
+      size
     end
 
     def normalize_cache(value = @cache)

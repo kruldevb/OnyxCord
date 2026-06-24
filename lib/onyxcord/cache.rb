@@ -12,6 +12,17 @@ module OnyxCord
   # the caching (like, storing the user hashes or making API calls to retrieve things) from the Bot that
   # actually uses it.
   module Cache
+    CACHE_STORES = {
+      users: :@users,
+      voice_regions: :@voice_regions,
+      servers: :@servers,
+      channels: :@channels,
+      pm_channels: :@pm_channels,
+      thread_members: :@thread_members,
+      server_previews: :@server_previews,
+      request_members: :@request_members_rl
+    }.freeze
+
     # Initializes this cache
     def init_cache
       @cache_policy ||= OnyxCord.configuration.normalize_cache(:full)
@@ -30,6 +41,24 @@ module OnyxCord
 
     def cache_enabled?(key)
       @cache_policy.fetch(key, true)
+    end
+
+    def cache_stats
+      CACHE_STORES.each_with_object({}) do |(key, ivar), stats|
+        store = instance_variable_get(ivar)
+        stats[key] = store.respond_to?(:size) ? store.size : 0
+      end
+    end
+
+    def prune_cache!(*keys)
+      keys = CACHE_STORES.keys if keys.empty?
+
+      keys.each_with_object({}) do |key, pruned|
+        ivar = CACHE_STORES.fetch(key)
+        store = instance_variable_get(ivar)
+        pruned[key] = store.respond_to?(:size) ? store.size : 0
+        store&.clear
+      end
     end
 
     # Returns or caches the available voice regions

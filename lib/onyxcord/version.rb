@@ -3,5 +3,5 @@
 # OnyxCord and all its functionality, in this case only the version.
 module OnyxCord
   # The current version of onyxcord.
-  VERSION = '1.1.2'
+  VERSION = '1.1.3'
 end

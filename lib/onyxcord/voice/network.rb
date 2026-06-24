@@ -113,6 +113,10 @@ module OnyxCord::Voice
       send_packet(discovery_packet)
     end
 
+    def close
+      @socket.close unless @socket.closed?
+    end
+
     private
 
     # Encrypts audio data using libsodium
@@ -339,8 +343,12 @@ module OnyxCord::Voice
     end
 
     # Disconnects the websocket and kills the thread
-    def destroy
+    def destroy(join_timeout = 1)
       @heartbeat_running = false
+      @client&.close
+      @udp.close
+      @thread&.join(join_timeout)
+      @thread&.kill if @thread&.alive?
     end
 
     private

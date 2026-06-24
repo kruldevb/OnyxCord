@@ -41,5 +41,13 @@ describe OnyxCord::EventExecutor do
 
       expect(ran).to be(true)
     end
+
+    it 'uses a sized queue when configured' do
+      executor = described_class.new(size: 1, queue_size: 2)
+
+      expect(executor.queue).to be_a(SizedQueue)
+      expect(executor.queue.max).to eq(2)
+      executor.shutdown
+    end
   end
 end
