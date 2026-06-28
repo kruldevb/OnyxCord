@@ -6,6 +6,23 @@ require 'onyxcord/message_components'
 module OnyxCord::API::Webhook
   module_function
 
+  # Build attachment metadata payload for multipart uploads.
+  # Returns an array of { id:, filename: } hashes.
+  def attachment_payload(attachments)
+    Array(attachments).map.with_index do |attachment, index|
+      { id: index, filename: File.basename(attachment.path) }
+    end
+  end
+
+  # Build multipart body with named file fields and JSON payload.
+  def multipart_body(body, attachments)
+    files = Array(attachments).map.with_index.to_h do |attachment, index|
+      ["files[#{index}]", attachment]
+    end
+
+    { **files, payload_json: body.to_json }
+  end
+
   # Get a webhook
   # https://discord.com/developers/docs/resources/webhook#get-webhook
   def webhook(token, webhook_id)
@@ -34,13 +51,12 @@ module OnyxCord::API::Webhook
   def token_execute_webhook(webhook_token, webhook_id, wait = false, content = nil, username = nil, avatar_url = nil, tts = nil, file = nil, embeds = nil, allowed_mentions = nil, flags = nil, components = nil, attachments = nil, poll = nil)
     components = OnyxCord::MessageComponents.payload(components) unless components.nil?
     flags = OnyxCord::MessageComponents.apply_v2_flag(flags, components)
-    body = { content: content, username: username, avatar_url: avatar_url, tts: tts, embeds: embeds&.map(&:to_hash),  allowed_mentions: allowed_mentions, flags: flags, components: components, poll: poll }
+    body = { content: content, username: username, avatar_url: avatar_url, tts: tts, embeds: embeds&.map(&:to_hash), allowed_mentions: allowed_mentions, flags: flags, components: components, attachments: attachments ? attachment_payload(attachments) : nil, poll: poll }.compact
 
     body = if file
              { file: file, payload_json: body.to_json }
            elsif attachments
-             files = [*0...attachments.size].zip(attachments).to_h
-             { **files, payload_json: body.to_json }
+             multipart_body(body, attachments)
            else
              body.to_json
            end
@@ -129,11 +145,10 @@ module OnyxCord::API::Webhook
   def token_edit_message(webhook_token, webhook_id, message_id, content = nil, embeds = nil, allowed_mentions = nil, components = nil, attachments = nil, flags = nil, poll = nil)
     components = OnyxCord::MessageComponents.payload(components) unless components.nil?
     flags = OnyxCord::MessageComponents.apply_v2_flag(flags, components)
-    body = { content: content, embeds: embeds, allowed_mentions: allowed_mentions, components: components, flags: flags, poll: poll }
+    body = { content: content, embeds: embeds, allowed_mentions: allowed_mentions, components: components, attachments: attachments ? attachment_payload(attachments) : nil, flags: flags, poll: poll }.compact
 
     body = if attachments
-             files = [*0...attachments.size].zip(attachments).to_h
-             { **files, payload_json: body.to_json }
+             multipart_body(body, attachments)
            else
              body.to_json
            end

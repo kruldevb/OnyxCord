@@ -279,7 +279,9 @@ class OnyxCord::Webhooks::View
     # @param url [String] An `attachment://<filename>` reference to the attached file.
     # @param id [Integer, nil] The unique 32-bit ID of the file component.
     # @param spoiler [true, false] Whether or not to apply a spoiler label to the file.
-    def initialize(url:, id: nil, spoiler: false)
+    def initialize(url = nil, id: nil, spoiler: false, **kwargs)
+      url = kwargs.fetch(:url, url)
+
       @id = id
       @file = { url: }
       @spoiler = spoiler
@@ -296,9 +298,11 @@ class OnyxCord::Webhooks::View
     # Create a media gallery component.
     # @param id [Integer, nil] The unique 32-bit ID of the media gallery component.
     # @yieldparam builder [MediaGalleryBuilder] Yields the initialized media gallery component.
-    def initialize(id: nil)
+    def initialize(*items, id: nil)
       @id = id
       @items = []
+
+      items.each { |item| self.item(item) }
 
       yield self if block_given?
     end
@@ -307,13 +311,31 @@ class OnyxCord::Webhooks::View
     # @param url [String] The URL to the gallery item's media.
     # @param description [String, nil] The description of the gallery item.
     # @param spoiler [true, false] Whether or not to apply a spoiler label to the gallery item.
-    def item(url:, description: nil, spoiler: false)
-      @items << { media: { url: }, description: description, spoiler: spoiler }.compact
+    def item(item = nil, url: nil, description: nil, spoiler: nil)
+      url, description, spoiler = normalize_item(item, url, description, spoiler)
+      raise ArgumentError, 'media gallery item requires a url' if url.nil? || url.to_s.empty?
+
+      @items << { media: { url: url }, description: description, spoiler: spoiler }.compact
     end
 
     # @!visibility private
     def to_h
       { type: COMPONENT_TYPES[:media_gallery], id: @id, items: @items }.compact
+    end
+
+    private
+
+    def normalize_item(item, url, description, spoiler)
+      if item.is_a?(Hash)
+        media = item[:media] || item['media'] || {}
+        url ||= item[:url] || item['url'] || media[:url] || media['url']
+        description = item[:description] || item['description'] if description.nil?
+        spoiler = item[:spoiler] || item['spoiler'] if spoiler.nil?
+      else
+        url ||= item
+      end
+
+      [url, description, spoiler.nil? ? false : spoiler]
     end
   end
 
@@ -425,8 +447,8 @@ class OnyxCord::Webhooks::View
 
     # Add a media gallery component to the container.
     # @see MediaGalleryBuilder#initialize
-    def media_gallery(...)
-      @components << MediaGalleryBuilder.new(...)
+    def media_gallery(*items, id: nil, &block)
+      @components << MediaGalleryBuilder.new(*items, id: id, &block)
     end
 
     # Set the color of the container.
@@ -547,8 +569,8 @@ class OnyxCord::Webhooks::View
 
   # Add a media gallery component to the view.
   # @see MediaGalleryBuilder#initialize
-  def media_gallery(id: nil, &block)
-    builder = MediaGalleryBuilder.new(id: id)
+  def media_gallery(*items, id: nil, &block)
+    builder = MediaGalleryBuilder.new(*items, id: id)
     @components << builder
     yield builder if block_given?
     builder

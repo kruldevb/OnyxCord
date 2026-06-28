@@ -6,6 +6,24 @@ require 'onyxcord/message_components'
 module OnyxCord::API::Channel
   module_function
 
+  # Build attachment metadata payload for multipart uploads.
+  # Returns an array of { id:, filename: } hashes.
+  def attachment_payload(attachments)
+    Array(attachments).map.with_index do |attachment, index|
+      { id: index, filename: File.basename(attachment.path) }
+    end
+  end
+
+  # Build multipart body with named file fields and JSON payload.
+  def multipart_body(body, attachments)
+    files = Array(attachments).map.with_index.to_h do |attachment, index|
+      ["files[#{index}]", attachment]
+    end
+
+    { **files, payload_json: body.to_json }
+  end
+
+
   # Get a channel's data
   # https://discord.com/developers/docs/resources/channel#get-channel
   def resolve(token, channel_id)
@@ -93,12 +111,12 @@ module OnyxCord::API::Channel
   # @param attachments [Array<File>, nil] Attachments to use with `attachment://` in embeds. See
   #   https://discord.com/developers/docs/resources/channel#create-message-using-attachments-within-embeds
   def create_message(token, channel_id, message, tts = false, embeds = nil, nonce = nil, attachments = nil, allowed_mentions = nil, message_reference = nil, components = nil, flags = nil, enforce_nonce = false, poll = nil)
+    tts = false unless tts == true || tts == false
     components = OnyxCord::MessageComponents.payload(components) unless components.nil?
     flags = OnyxCord::MessageComponents.apply_v2_flag(flags, components)
-    body = { content: message, tts: tts, embeds: embeds, nonce: nonce, allowed_mentions: allowed_mentions, message_reference: message_reference, components: components, flags: flags, enforce_nonce: enforce_nonce, poll: poll }
+    body = { content: message, tts: tts == true, embeds: embeds, nonce: nonce, allowed_mentions: allowed_mentions, message_reference: message_reference, components: components, attachments: attachments ? attachment_payload(attachments) : nil, flags: flags, enforce_nonce: enforce_nonce, poll: poll }.compact
     body = if attachments
-             files = [*0...attachments.size].zip(attachments).to_h
-             { **files, payload_json: body.to_json }
+             multipart_body(body, attachments)
            else
              body.to_json
            end
@@ -652,8 +670,7 @@ module OnyxCord::API::Channel
     body = { name: name, message: message, rate_limit_per_user: rate_limit_per_user, auto_archive_duration: auto_archive_duration, applied_tags: applied_tags }.compact
 
     body = if attachments
-             files = [*0...attachments.size].zip(attachments).to_h
-             { **files, payload_json: body.to_json }
+             multipart_body(body, attachments)
            else
              body.to_json
            end

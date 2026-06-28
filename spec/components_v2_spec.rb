@@ -122,6 +122,61 @@ describe 'Components V2 support' do
         ]
       )
     end
+
+    it 'builds media gallery items from direct urls and hashes' do
+      view = described_class.new do |v|
+        v.media_gallery(
+          'https://cdn.example.test/banner.png',
+          { url: 'attachment://cover.png', description: 'Capa', spoiler: true }
+        )
+
+        v.container do |container|
+          container.media_gallery('https://cdn.example.test/inside.png')
+        end
+      end
+
+      expect(view.to_a).to eq(
+        [
+          {
+            type: 12,
+            items: [
+              { media: { url: 'https://cdn.example.test/banner.png' }, spoiler: false },
+              { media: { url: 'attachment://cover.png' }, description: 'Capa', spoiler: true }
+            ]
+          },
+          {
+            type: 17,
+            spoiler: false,
+            components: [
+              { type: 12, items: [{ media: { url: 'https://cdn.example.test/inside.png' }, spoiler: false }] }
+            ]
+          }
+        ]
+      )
+    end
+
+    it 'builds file display components from direct attachment urls' do
+      view = described_class.new do |v|
+        v.file_display('attachment://receipt.txt')
+
+        v.container do |container|
+          container.file_display('attachment://inside.txt', spoiler: true)
+        end
+      end
+
+      expect(view.to_a).to eq(
+        [
+          { type: 13, spoiler: false, file: { url: 'attachment://receipt.txt' } },
+          {
+            type: 17,
+            spoiler: false,
+            components: [
+              { type: 13, spoiler: true, file: { url: 'attachment://inside.txt' } }
+            ]
+          }
+        ]
+      )
+    end
   end
 
   describe OnyxCord::Webhooks::Builder do

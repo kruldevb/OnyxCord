@@ -331,7 +331,7 @@ module OnyxCord
       def initialize(data, bot)
         @bot = bot
         @id = data['id']
-        @items = data['items'].map { |item| Item.new(item, @bot) }
+        @items = Array(data['items']).map { |item| Item.new(item, @bot) }
       end
 
       # A singular media attachment.
@@ -515,7 +515,7 @@ module OnyxCord
         @bot = bot
         @id = data['id']
         @custom_id = data['custom_id']
-        @values = data['values'].map(&:to_i)
+        @values = Array(data['values']).map(&:to_i)
       end
     end
 

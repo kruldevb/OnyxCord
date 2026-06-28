@@ -6,18 +6,34 @@ require 'onyxcord/message_components'
 module OnyxCord::API::Interaction
   module_function
 
+  # Build attachment metadata payload for multipart uploads.
+  # Returns an array of { id:, filename: } hashes.
+  def attachment_payload(attachments)
+    Array(attachments).map.with_index do |attachment, index|
+      { id: index, filename: File.basename(attachment.path) }
+    end
+  end
+
+  # Build multipart body with named file fields and JSON payload.
+  def multipart_body(body, attachments)
+    files = Array(attachments).map.with_index.to_h do |attachment, index|
+      ["files[#{index}]", attachment]
+    end
+
+    { **files, payload_json: body.to_json }
+  end
+
   # Respond to an interaction.
   # https://discord.com/developers/docs/interactions/slash-commands#create-interaction-response
   def create_interaction_response(interaction_token, interaction_id, type, content = nil, tts = nil, embeds = nil, allowed_mentions = nil, flags = nil, components = nil, attachments = nil, choices = nil, with_response = nil, poll = nil)
     components = OnyxCord::MessageComponents.payload(components) unless components.nil?
     flags = OnyxCord::MessageComponents.apply_v2_flag(flags, components)
-    body = { tts: tts, content: content, embeds: embeds, allowed_mentions: allowed_mentions, flags: flags, components: components, choices: choices, poll: poll }.compact
+    data = { tts: tts, content: content, embeds: embeds, allowed_mentions: allowed_mentions, flags: flags, components: components, attachments: attachments ? attachment_payload(attachments) : nil, choices: choices, poll: poll }.compact
 
     body = if attachments
-             files = [*0...attachments.size].zip(attachments).to_h
-             { **files, payload_json: { type: type, data: body }.to_json }
+             multipart_body({ type: type, data: data }, attachments)
            else
-             { type: type, data: body }.to_json
+             { type: type, data: data }.to_json
            end
 
     headers = { content_type: :json } unless attachments
