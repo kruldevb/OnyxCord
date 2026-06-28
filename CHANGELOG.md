@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.1.7 - 2026-06-28
+
+### Melhorias
+
+- Atualizada a descricao publicada no RubyGems para mostrar o convite da comunidade Discord: `https://discord.gg/Jy2tpCUtzM`.
+- README mantem as secoes em ingles, portugues e espanhol com o link da comunidade.
+
+### Validacao
+
+- `ruby -c onyxcord.gemspec`: sucesso.
+- `ruby -c onyxcord-webhooks.gemspec`: sucesso.
+
 ## 1.1.6 - 2026-06-28
 
 ### Melhorias

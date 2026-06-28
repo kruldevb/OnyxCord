@@ -10,7 +10,7 @@ Gem::Specification.new do |spec|
   spec.email         = ['gustavosilva8kt@gmail.com']
 
   spec.summary       = 'Discord API for Ruby with Components V2 support'
-  spec.description   = 'A Ruby implementation of the Discord API based on discordrb, updated for OnyxCord with raw-first core, modern modals, Components V2, and community support at https://discord.gg/Jy2tpCUtzM.'
+  spec.description   = 'OnyxCord is a Ruby Discord API library with Components V2, modern modals, raw-first events, and community support: https://discord.gg/Jy2tpCUtzM.'
   spec.homepage      = 'https://github.com/kruldevb/OnyxCord'
   spec.license       = 'MIT'
 

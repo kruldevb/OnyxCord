@@ -9,7 +9,7 @@ Gem::Specification.new do |spec|
   spec.email         = ['gustavosilva8kt@gmail.com']
 
   spec.summary       = 'Webhook client for onyxcord'
-  spec.description   = "A webhook client for OnyxCord, a Ruby Discord library based on discordrb and updated with Components V2 support. Community: https://discord.gg/Jy2tpCUtzM."
+  spec.description   = "Webhook client for OnyxCord with Components V2 support and community support: https://discord.gg/Jy2tpCUtzM."
   spec.homepage      = 'https://github.com/kruldevb/OnyxCord'
   spec.license       = 'MIT'
 
