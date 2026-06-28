@@ -3,51 +3,51 @@
 [![Gem](https://img.shields.io/gem/v/onyxcord.svg)](https://rubygems.org/gems/onyxcord)
 [![Gem](https://img.shields.io/gem/dt/onyxcord.svg)](https://rubygems.org/gems/onyxcord)
 
-OnyxCord é uma biblioteca Ruby para criar bots, integrações, webhooks e experiências interativas no Discord.
+OnyxCord is a Ruby library for Discord bots, interactions, webhooks, modern modals, and Components V2.
 
-O projeto foi feito com base no `discordrb`, respeitando a base que tornou bots em Ruby simples de começar, mas trazendo uma direção nova para a comunidade: core mais leve, modo raw-first, suporte aos novos componentes de modal e suporte aos Components V2 do Discord.
+Community Discord: https://discord.gg/Jy2tpCUtzM
 
-A ideia é simples:
+Languages: [English](#english) | [Portugues](#portugues) | [Espanol](#espanol)
+
+## English
+
+OnyxCord is a Ruby implementation of the Discord API based on `discordrb`, updated with a lighter raw-first core, modern modal components, webhook helpers, and Discord Components V2 support.
 
 ```txt
-Simples para começar, profundo para controlar.
+Simple to start, deep enough to control.
 ```
 
-## Destaques
+### Highlights
 
-- API Ruby amigável para bots do Discord.
-- Eventos tradicionais com objetos para quem quer produtividade.
-- Eventos raw para quem quer performance e menos alocação.
-- Components V2 com `Text Display`, `Container`, `Section`, `Media Gallery`, `File`, `Separator` e `Thumbnail`.
-- Novos componentes de modal, incluindo `Label`, `Text Display`, selects em modal, upload, radio group e checkbox group.
-- Webhooks com embeds, arquivos e componentes.
-- Rate limiter e executor de eventos preparados para o core moderno do OnyxCord.
+- Friendly Ruby API for Discord bots.
+- Traditional object events for productivity.
+- Raw gateway events for performance and lower allocation.
+- Components V2 support with `Text Display`, `Container`, `Section`, `Media Gallery`, `File`, `Separator`, and `Thumbnail`.
+- Modern modal components, including `Label`, `Text Display`, modal selects, file upload, radio group, checkbox group, and checkbox.
+- Webhooks with embeds, files, and components.
+- Runtime helpers, rate limiting, and event execution designed for modern OnyxCord bots.
 
-## Instalação
+### Installation
 
-Com Bundler:
+With Bundler:
 
 ```ruby
 gem 'onyxcord'
 ```
 
-Depois:
+Then:
 
 ```sh
 bundle install
 ```
 
-Ou direto pelo RubyGems:
+Or install directly:
 
 ```sh
 gem install onyxcord
 ```
 
-No Windows, use uma instalação Ruby com DevKit para compilar dependências nativas quando necessário.
-
-## Primeiro bot
-
-Crie um arquivo `bot.rb`:
+### First Bot
 
 ```ruby
 require 'onyxcord'
@@ -69,126 +69,136 @@ end
 bot.run
 ```
 
-Execute:
+### Components V2
 
-```sh
-ruby bot.rb
-```
-
-## Eventos raw
-
-Para bots que precisam de performance, o OnyxCord pode trabalhar direto com o payload do Gateway:
+OnyxCord automatically applies the `IS_COMPONENTS_V2` flag when you use V2 components. You can also enable it explicitly with `components_v2: true`.
 
 ```ruby
-require 'onyxcord'
-
-bot = OnyxCord::Bot.new(
-  token: ENV.fetch('DISCORD_TOKEN'),
-  mode: :raw,
-  intents: :minimal
-)
-
-bot.raw(:MESSAGE_CREATE) do |payload|
-  puts payload['d']['content']
-end
-
-bot.raw(/MESSAGE_/) do |payload|
-  puts "evento: #{payload['t']}"
-end
-
-bot.raw do |payload|
-  puts "op: #{payload['op']}"
-end
-
-bot.run
-```
-
-Use `mode: :raw` quando quiser evitar a criação de objetos pesados e processar apenas os pacotes de Gateway diretamente.
-**Importante:** O `OnyxCord` roda em `:hybrid` por padrão, entao comandos de aplicação normais (`application_command`), modais e outros eventos em objeto ja funcionam sem precisar informar `mode: :hybrid`.
-
-## Performance e memória
-
-Para limitar crescimento de fila quando handlers ficam lentos, configure um tamanho maximo para a fila do executor:
-
-```ruby
-OnyxCord.configure do |config|
-  config.event_workers = 4
-  config.event_queue_size = 1_000
-end
-```
-
-Em bots grandes, use `bot.runtime_stats`, `bot.cache_stats` e `bot.prune_cache!` para acompanhar e limpar caches em runtime.
-
-## Components V2
-
-Components V2 usam a flag `IS_COMPONENTS_V2` (`1 << 15`, valor `32768`). No OnyxCord, essa flag é aplicada automaticamente quando você usa componentes V2, mas você também pode deixar explícito com `components_v2: true`.
-
-Importante: em mensagens V2, o Discord desativa `content`, `embeds`, `poll` e stickers tradicionais. O conteúdo visual deve ser enviado como componentes.
-
-```ruby
-bot.message(content: '!painel') do |event|
+bot.message(content: '!panel') do |event|
   event.send_message!(content: nil, components_v2: true) do |_builder, view|
-    view.text_display(content: '## Painel OnyxCord')
-    view.text_display(content: 'Escolha uma ação abaixo.')
+    view.text_display(content: '## OnyxCord Panel')
+    view.text_display(content: 'Choose an action below.')
 
     view.row do |row|
-      row.button(
-        style: :primary,
-        label: 'Abrir',
-        custom_id: 'open_panel'
-      )
-
-      row.button(
-        style: :secondary,
-        label: 'Ajuda',
-        custom_id: 'help_panel'
-      )
+      row.button(style: :primary, label: 'Open', custom_id: 'open_panel')
+      row.button(style: :secondary, label: 'Help', custom_id: 'help_panel')
     end
   end
 end
-
-bot.button(custom_id: 'open_panel') do |event|
-  event.respond(content: 'Painel aberto!', ephemeral: true)
-end
 ```
 
-## Container V2
-
-Containers funcionam como uma estrutura visual rica para agrupar textos, botões, imagens e arquivos:
+### Modern Modals
 
 ```ruby
-bot.message(content: '!status') do |event|
-  event.send_message!(content: nil) do |_builder, view|
-    view.container(color: '#8b5cf6') do |container|
-      container.text_display(content: '### Status do servidor')
-      container.separator(divider: true, spacing: :small)
+bot.application_command(:feedback) do |event|
+  event.show_modal(title: 'Feedback', custom_id: 'feedback_modal') do |modal|
+    modal.label(label: 'Message') do |label|
+      label.text_input(
+        style: :paragraph,
+        custom_id: 'message',
+        required: true,
+        placeholder: 'Tell us what you think...'
+      )
+    end
 
-      container.section do |section|
-        section.text_display(content: 'Tudo funcionando normalmente.')
-        section.button(
-          style: :success,
-          label: 'Atualizar',
-          custom_id: 'refresh_status'
-        )
+    modal.label(label: 'Category') do |label|
+      label.string_select(custom_id: 'category', required: true) do |menu|
+        menu.option(label: 'Bug', value: 'bug')
+        menu.option(label: 'Idea', value: 'idea')
+        menu.option(label: 'Other', value: 'other')
       end
     end
   end
 end
 ```
 
-Ao usar `container`, `section`, `text_display`, `media_gallery`, `file_display`, `separator` ou `thumbnail`, o OnyxCord detecta Components V2 e envia a flag correta.
+### Community
 
-## Modais modernos
+Join the Discord server for support, updates, examples, and feedback: https://discord.gg/Jy2tpCUtzM
 
-O OnyxCord também suporta os componentes novos de modal:
+## Portugues
+
+OnyxCord e uma biblioteca Ruby para criar bots, integracoes, webhooks e experiencias interativas no Discord.
+
+O projeto foi feito com base no `discordrb`, respeitando a base que tornou bots em Ruby simples de comecar, mas trazendo uma direcao nova para a comunidade: core mais leve, modo raw-first, suporte aos novos componentes de modal e Components V2 do Discord.
+
+```txt
+Simples para comecar, profundo para controlar.
+```
+
+### Destaques
+
+- API Ruby amigavel para bots do Discord.
+- Eventos tradicionais com objetos para quem quer produtividade.
+- Eventos raw para quem quer performance e menos alocacao.
+- Components V2 com `Text Display`, `Container`, `Section`, `Media Gallery`, `File`, `Separator` e `Thumbnail`.
+- Novos componentes de modal, incluindo `Label`, `Text Display`, selects em modal, upload, radio group, checkbox group e checkbox.
+- Webhooks com embeds, arquivos e componentes.
+- Rate limiter e executor de eventos preparados para o core moderno do OnyxCord.
+
+### Instalacao
+
+Com Bundler:
 
 ```ruby
-bot.register_application_command(
-  :feedback,
-  'Enviar feedback',
-  server_id: ENV.fetch('DISCORD_SERVER_ID')
+gem 'onyxcord'
+```
+
+Depois:
+
+```sh
+bundle install
+```
+
+Ou direto pelo RubyGems:
+
+```sh
+gem install onyxcord
+```
+
+### Primeiro Bot
+
+```ruby
+require 'onyxcord'
+
+bot = OnyxCord::Bot.new(
+  token: ENV.fetch('DISCORD_TOKEN'),
+  intents: %i[servers server_messages direct_messages message_content],
+  mode: :hybrid
 )
 
+bot.message(content: 'ping') do |event|
+  event.respond!(content: 'pong')
+end
+
+bot.application_command(:ping) do |event|
+  event.respond(content: 'Pong via Slash Command!')
+end
+
+bot.run
+```
+
+### Components V2
+
+O OnyxCord aplica automaticamente a flag `IS_COMPONENTS_V2` quando voce usa componentes V2. Voce tambem pode deixar explicito com `components_v2: true`.
+
+```ruby
+bot.message(content: '!painel') do |event|
+  event.send_message!(content: nil, components_v2: true) do |_builder, view|
+    view.text_display(content: '## Painel OnyxCord')
+    view.text_display(content: 'Escolha uma acao abaixo.')
+
+    view.row do |row|
+      row.button(style: :primary, label: 'Abrir', custom_id: 'open_panel')
+      row.button(style: :secondary, label: 'Ajuda', custom_id: 'help_panel')
+    end
+  end
+end
+```
+
+### Modais Modernos
+
+```ruby
 bot.application_command(:feedback) do |event|
   event.show_modal(title: 'Feedback', custom_id: 'feedback_modal') do |modal|
     modal.label(label: 'Mensagem') do |label|
@@ -196,7 +206,7 @@ bot.application_command(:feedback) do |event|
         style: :paragraph,
         custom_id: 'message',
         required: true,
-        placeholder: 'Conte o que você achou...'
+        placeholder: 'Conte o que voce achou...'
       )
     end
 
@@ -207,112 +217,169 @@ bot.application_command(:feedback) do |event|
         menu.option(label: 'Outro', value: 'other')
       end
     end
-
-    modal.text_display(content: 'Obrigado por ajudar a melhorar a comunidade.')
   end
-end
-
-bot.modal_submit(custom_id: 'feedback_modal') do |event|
-  categoria = event.values('category')&.first
-  mensagem = event.value('message')
-
-  event.respond(
-    content: "Feedback recebido em #{categoria}: #{mensagem}",
-    ephemeral: true
-  )
 end
 ```
 
-## Webhooks
+### Comunidade
 
-Também existe um cliente de webhooks:
+Entre no servidor do Discord para suporte, atualizacoes, exemplos e feedback: https://discord.gg/Jy2tpCUtzM
+
+## Espanol
+
+OnyxCord es una biblioteca Ruby para crear bots, integraciones, webhooks y experiencias interactivas en Discord.
+
+El proyecto esta basado en `discordrb`, manteniendo la idea que hizo simples los bots en Ruby, pero con una direccion moderna para la comunidad: nucleo mas ligero, modo raw-first, componentes modernos de modal y soporte para Components V2 de Discord.
+
+```txt
+Simple para empezar, profundo para controlar.
+```
+
+### Caracteristicas
+
+- API Ruby amigable para bots de Discord.
+- Eventos tradicionales con objetos para productividad.
+- Eventos raw para rendimiento y menos asignaciones.
+- Components V2 con `Text Display`, `Container`, `Section`, `Media Gallery`, `File`, `Separator` y `Thumbnail`.
+- Componentes modernos de modal, incluyendo `Label`, `Text Display`, selects en modal, subida de archivos, radio group, checkbox group y checkbox.
+- Webhooks con embeds, archivos y componentes.
+- Rate limiter y executor de eventos preparados para el core moderno de OnyxCord.
+
+### Instalacion
+
+Con Bundler:
 
 ```ruby
-require 'onyxcord/webhooks'
+gem 'onyxcord'
+```
 
-client = OnyxCord::Webhooks::Client.new(
-  url: ENV.fetch('DISCORD_WEBHOOK_URL')
+Despues:
+
+```sh
+bundle install
+```
+
+O directamente con RubyGems:
+
+```sh
+gem install onyxcord
+```
+
+### Primer Bot
+
+```ruby
+require 'onyxcord'
+
+bot = OnyxCord::Bot.new(
+  token: ENV.fetch('DISCORD_TOKEN'),
+  intents: %i[servers server_messages direct_messages message_content],
+  mode: :hybrid
 )
 
-client.execute do |builder|
-  builder.content = 'Mensagem enviada por webhook.'
+bot.message(content: 'ping') do |event|
+  event.respond!(content: 'pong')
+end
 
-  builder.add_embed do |embed|
-    embed.title = 'OnyxCord'
-    embed.description = 'Webhook funcionando.'
-    embed.timestamp = Time.now
+bot.application_command(:ping) do |event|
+  event.respond(content: 'Pong via Slash Command!')
+end
+
+bot.run
+```
+
+### Components V2
+
+OnyxCord aplica automaticamente la flag `IS_COMPONENTS_V2` cuando usas componentes V2. Tambien puedes activarla de forma explicita con `components_v2: true`.
+
+```ruby
+bot.message(content: '!panel') do |event|
+  event.send_message!(content: nil, components_v2: true) do |_builder, view|
+    view.text_display(content: '## Panel OnyxCord')
+    view.text_display(content: 'Elige una accion abajo.')
+
+    view.row do |row|
+      row.button(style: :primary, label: 'Abrir', custom_id: 'open_panel')
+      row.button(style: :secondary, label: 'Ayuda', custom_id: 'help_panel')
+    end
   end
 end
 ```
 
-Webhook com Components V2:
+### Modales Modernos
 
 ```ruby
-client.execute(components_v2: true) do |builder, view|
-  builder.content = nil
+bot.application_command(:feedback) do |event|
+  event.show_modal(title: 'Feedback', custom_id: 'feedback_modal') do |modal|
+    modal.label(label: 'Mensaje') do |label|
+      label.text_input(
+        style: :paragraph,
+        custom_id: 'message',
+        required: true,
+        placeholder: 'Cuentanos que piensas...'
+      )
+    end
 
-  view.text_display(content: '## Atualização da comunidade')
-  view.text_display(content: 'Nova versão do OnyxCord disponível.')
+    modal.label(label: 'Categoria') do |label|
+      label.string_select(custom_id: 'category', required: true) do |menu|
+        menu.option(label: 'Bug', value: 'bug')
+        menu.option(label: 'Idea', value: 'idea')
+        menu.option(label: 'Otro', value: 'other')
+      end
+    end
+  end
 end
 ```
 
-Quando componentes são enviados por webhook, o OnyxCord adiciona `with_components=true` na URL automaticamente.
+### Comunidad
 
-## Dependências
+Unete al servidor de Discord para soporte, actualizaciones, ejemplos y feedback: https://discord.gg/Jy2tpCUtzM
 
-Para bots normais:
+## Dependencies
 
-- Ruby 3.2 ou superior.
-- Bundler recomendado.
-- Build tools para extensões nativas, principalmente no Windows.
+For normal bots:
 
-Para recursos de voz:
+- Ruby 3.3 or newer.
+- Bundler is recommended.
+- Build tools for native extensions, especially on Windows.
+
+For voice features:
 
 - `libsodium`
 - `libopus`
 - `FFmpeg`
 
-Você só precisa dessas dependências de voz se o bot for entrar em canais de voz, tocar áudio ou trabalhar com pacotes de voz. Bots de texto, comandos, interactions, modais, webhooks e Components V2 funcionam sem `libsodium`.
+Voice dependencies are only needed when your bot joins voice channels, plays audio, or works with voice packets. Text bots, commands, interactions, modals, webhooks, and Components V2 do not need `libsodium`.
 
-## Exemplos
+## Examples
 
-A pasta `examples/` contém exemplos prontos:
+The `examples/` directory contains ready-to-use examples:
 
-- `ping.rb`: bot simples de ping/pong.
-- `commands.rb`: comandos tradicionais.
+- `ping.rb`: simple ping/pong bot.
+- `commands.rb`: classic commands.
 - `slash_commands.rb`: slash commands.
 - `components.rb`: Components V2.
-- `modals.rb`: modais modernos.
-- `select_menus.rb`: menus de seleção.
+- `modals.rb`: modern modals.
+- `select_menus.rb`: select menus.
 - `webhooks.rb`: webhooks.
-- `voice_send.rb`: envio de voz.
+- `voice_send.rb`: voice sending.
 
-## Desenvolvimento
-
-Para trabalhar no OnyxCord localmente:
+## Development
 
 ```sh
 bundle install
 bundle exec rspec spec
 ```
 
-Se `libsodium` não estiver instalado, os testes de voz podem falhar. Para testar o restante:
+If `libsodium` is not installed, voice tests may fail. To test the rest:
 
 ```sh
 bundle exec rspec $(find spec -name '*_spec.rb' ! -name 'sodium_spec.rb' | sort)
 ```
 
-## Créditos
+## Credits
 
-OnyxCord foi criado a partir da base do `discordrb`, uma biblioteca Ruby importante para a comunidade de bots no Discord.
+OnyxCord was created from the foundation of `discordrb`, an important Ruby library for the Discord bot community.
 
-Este projeto continua essa ideia com uma proposta atualizada:
+## License
 
-- manter Ruby acessível para bots do Discord;
-- modernizar o core;
-- adicionar suporte aos novos componentes do Discord;
-- entregar uma base aberta para a comunidade evoluir.
-
-## Licença
-
-Distribuído como open source sob a licença MIT.
+Open source under the MIT license.
