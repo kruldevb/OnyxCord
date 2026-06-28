@@ -189,6 +189,99 @@ describe 'Components V2 support' do
     end
   end
 
+  describe OnyxCord::Webhooks::Modal do
+    it 'builds modal labels with selects, text display, file upload, radio groups, checkbox groups, and checkboxes' do
+      modal = described_class.new do |m|
+        m.label(id: 1, label: 'Favorite bug', description: 'Choose one') do |label|
+          label.string_select(custom_id: 'bug_string_select', placeholder: 'Choose...', required: true) do |menu|
+            menu.option(label: 'Ant', value: 'ant', description: 'Tiny and strong')
+          end
+        end
+
+        m.text_display(content: 'Extra context', id: 2)
+
+        m.label(label: 'Upload evidence') do |label|
+          label.file_upload(custom_id: 'evidence', min_values: 1, max_values: 3, required: false)
+        end
+
+        m.label(label: 'Pick one') do |label|
+          label.radio_group(custom_id: 'priority', required: true) do |group|
+            group.radio_button(label: 'High', value: 'high', description: 'Needs attention')
+            group.radio_button(label: 'Low', value: 'low', default: true)
+          end
+        end
+
+        m.label(label: 'Pick many') do |label|
+          label.checkbox_group(custom_id: 'days', min_values: 0, max_values: 2, required: false) do |group|
+            group.checkbox(label: 'Monday', value: 'mon')
+            group.checkbox(label: 'Friday', value: 'fri', default: true)
+          end
+        end
+
+        m.label(label: 'Confirm') do |label|
+          label.checkbox(custom_id: 'confirm', default: true)
+        end
+      end
+
+      expect(modal.to_a).to eq(
+        [
+          {
+            type: 18,
+            id: 1,
+            label: 'Favorite bug',
+            description: 'Choose one',
+            component: {
+              type: 3,
+              options: [{ label: 'Ant', value: 'ant', description: 'Tiny and strong', emoji: nil, default: nil }],
+              placeholder: 'Choose...',
+              custom_id: 'bug_string_select',
+              required: true
+            }
+          },
+          { type: 10, id: 2, content: 'Extra context' },
+          {
+            type: 18,
+            label: 'Upload evidence',
+            component: { type: 19, custom_id: 'evidence', min_values: 1, max_values: 3, required: false }
+          },
+          {
+            type: 18,
+            label: 'Pick one',
+            component: {
+              type: 21,
+              custom_id: 'priority',
+              options: [
+                { value: 'high', label: 'High', description: 'Needs attention' },
+                { value: 'low', label: 'Low', default: true }
+              ],
+              required: true
+            }
+          },
+          {
+            type: 18,
+            label: 'Pick many',
+            component: {
+              type: 22,
+              custom_id: 'days',
+              options: [
+                { value: 'mon', label: 'Monday' },
+                { value: 'fri', label: 'Friday', default: true }
+              ],
+              required: false,
+              min_values: 0,
+              max_values: 2
+            }
+          },
+          {
+            type: 18,
+            label: 'Confirm',
+            component: { type: 23, custom_id: 'confirm', default: true }
+          }
+        ]
+      )
+    end
+  end
+
   describe OnyxCord::Webhooks::Client do
     it 'sends Components V2 flags and with_components for direct webhook execution' do
       client = described_class.new(url: 'https://discord.com/api/v9/webhooks/1/token')
@@ -274,6 +367,51 @@ describe 'Components V2 support' do
       expect(component).to be_a(OnyxCord::Components::Container)
       expect(component.components.first).to be_a(OnyxCord::Components::TextDisplay)
       expect(component.components.first.content).to eq('Parsed UI')
+    end
+
+    it 'parses modal label and new modal input component payloads' do
+      label = described_class.from_data(
+        {
+          'type' => 18,
+          'id' => 10,
+          'label' => 'Pick many',
+          'description' => 'Choose all that apply',
+          'component' => {
+            'type' => 22,
+            'id' => 11,
+            'custom_id' => 'days',
+            'values' => %w[mon fri]
+          }
+        },
+        double('bot')
+      )
+
+      expect(label).to be_a(OnyxCord::Components::Label)
+      expect(label.id).to eq(10)
+      expect(label.label).to eq('Pick many')
+      expect(label.description).to eq('Choose all that apply')
+      expect(label.component).to be_a(OnyxCord::Components::CheckboxGroup)
+      expect(label.component.custom_id).to eq('days')
+      expect(label.component.values).to eq(%w[mon fri])
+
+      expect(
+        described_class.from_data(
+          { 'type' => 19, 'custom_id' => 'evidence', 'values' => %w[123 456] },
+          double('bot')
+        ).values
+      ).to eq([123, 456])
+      expect(
+        described_class.from_data(
+          { 'type' => 21, 'custom_id' => 'priority', 'value' => 'high' },
+          double('bot')
+        ).value
+      ).to eq('high')
+      expect(
+        described_class.from_data(
+          { 'type' => 23, 'custom_id' => 'confirm', 'value' => true },
+          double('bot')
+        ).value
+      ).to be(true)
     end
   end
 end

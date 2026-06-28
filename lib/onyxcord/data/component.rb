@@ -488,6 +488,12 @@ module OnyxCord
       # @return [Integer] the numeric identifier of the label.
       attr_reader :id
 
+      # @return [String] the visible label text for the modal component.
+      attr_reader :label
+
+      # @return [String, nil] the optional description text for the label.
+      attr_reader :description
+
       # @return [Component] the interactive component of the label.
       attr_reader :component
 
@@ -495,6 +501,8 @@ module OnyxCord
       def initialize(data, bot)
         @bot = bot
         @id = data['id']
+        @label = data['label']
+        @description = data['description']
         @component = Components.from_data(data['component'], @bot)
       end
     end

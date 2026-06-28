@@ -248,7 +248,7 @@ class OnyxCord::Webhooks::Modal
 
     # @!visibility private
     def to_h
-      { type: COMPONENT_TYPES[:label], label: @label, description: @description, component: @component }.compact
+      { type: COMPONENT_TYPES[:label], id: @id, label: @label, description: @description, component: @component }.compact
     end
   end
 

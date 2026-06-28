@@ -4,6 +4,6 @@
 module OnyxCord
   module Webhooks
     # The current version of onyxcord-webhooks.
-    VERSION = '1.1.5'
+    VERSION = '1.1.6'
   end
 end

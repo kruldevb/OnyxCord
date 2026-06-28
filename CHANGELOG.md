@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.1.6 - 2026-06-28
+
+### Melhorias
+
+- Adicionado suporte aos novos componentes de modal do Discord: `Label`, `File Upload`, `Radio Group`, `Checkbox Group` e `Checkbox`.
+- Modais agora preservam o `id` do componente `Label` ao gerar o payload.
+- Parser de componentes agora expoe `label` e `description` em `Components::Label`.
+
+### Validacao
+
+- `bundle exec rspec spec/components_v2_spec.rb`: 15 exemplos, 0 falhas.
+- `ruby -c lib/onyxcord/webhooks/modal.rb`: sucesso.
+- `ruby -c lib/onyxcord/data/component.rb`: sucesso.
+- `ruby -c spec/components_v2_spec.rb`: sucesso.
+
 ## 1.1.5 - 2026-06-28
 
 ### Melhorias
