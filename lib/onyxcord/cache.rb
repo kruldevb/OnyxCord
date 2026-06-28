@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require 'lru_redux'
 require 'onyxcord/api'
 require 'onyxcord/api/server'
 require 'onyxcord/api/invite'
@@ -26,17 +27,15 @@ module OnyxCord
     # Initializes this cache
     def init_cache
       @cache_policy ||= OnyxCord.configuration.normalize_cache(:full)
+      sizes = OnyxCord.configuration.cache_sizes
 
-      @users = cache_enabled?(:users) ? {} : nil
-
+      @users = cache_enabled?(:users) ? LruRedux::ThreadSafeCache.new(sizes.users) : nil
       @voice_regions = cache_enabled?(:voice_regions) ? {} : nil
-
-      @servers = cache_enabled?(:servers) ? {} : nil
-
-      @channels = cache_enabled?(:channels) ? {} : nil
-      @pm_channels = cache_enabled?(:pm_channels) ? {} : nil
-      @thread_members = cache_enabled?(:thread_members) ? {} : nil
-      @server_previews = cache_enabled?(:server_previews) ? {} : nil
+      @servers = cache_enabled?(:servers) ? LruRedux::ThreadSafeCache.new(sizes.servers) : nil
+      @channels = cache_enabled?(:channels) ? LruRedux::ThreadSafeCache.new(sizes.channels) : nil
+      @pm_channels = cache_enabled?(:pm_channels) ? LruRedux::ThreadSafeCache.new(sizes.pm_channels) : nil
+      @thread_members = cache_enabled?(:thread_members) ? LruRedux::ThreadSafeCache.new(sizes.thread_members) : nil
+      @server_previews = cache_enabled?(:server_previews) ? LruRedux::ThreadSafeCache.new(sizes.server_previews) : nil
     end
 
     def cache_enabled?(key)
@@ -46,7 +45,7 @@ module OnyxCord
     def cache_stats
       CACHE_STORES.each_with_object({}) do |(key, ivar), stats|
         store = instance_variable_get(ivar)
-        stats[key] = store.respond_to?(:size) ? store.size : 0
+        stats[key] = store.respond_to?(:count) ? store.count : 0
       end
     end
 
@@ -56,7 +55,7 @@ module OnyxCord
       keys.each_with_object({}) do |key, pruned|
         ivar = CACHE_STORES.fetch(key)
         store = instance_variable_get(ivar)
-        pruned[key] = store.respond_to?(:size) ? store.size : 0
+        pruned[key] = store.respond_to?(:count) ? store.count : 0
         store&.clear
       end
     end

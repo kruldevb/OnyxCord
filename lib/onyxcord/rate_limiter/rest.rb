@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require 'json'
+require 'onyxcord/json'
 
 module OnyxCord
   module RateLimiter

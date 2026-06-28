@@ -62,7 +62,7 @@ module OnyxCord::API::Webhook
            end
 
     headers = { content_type: :json } unless file || attachments
-    with_components = components&.any? ? true : nil
+    with_components = components&.any? || nil
     query = URI.encode_www_form({ wait: wait, with_components: with_components }.compact)
 
     OnyxCord::API.request(

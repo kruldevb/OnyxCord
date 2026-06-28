@@ -59,12 +59,12 @@ describe OnyxCord::API do
     )
     second_response = instance_double('response', code: 200, body: '{}', headers: {})
 
-    allow(RestClient).to receive(:get).and_return(first_response, second_response)
+    allow(OnyxCord::HTTP).to receive(:request).and_return(first_response, second_response)
     allow(described_class).to receive(:sleep)
 
     result = described_class.request(:search_messages, 123, :get, 'https://example.com/search', {})
 
     expect(result).to eq(second_response)
-    expect(RestClient).to have_received(:get).twice
+    expect(OnyxCord::HTTP).to have_received(:request).twice
   end
 end

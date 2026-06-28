@@ -516,7 +516,7 @@ class OnyxCord::Webhooks::View
 
   # Add a row component to the view.
   # @see RowBuilder#initialize
-  def row(id: nil, &block)
+  def row(id: nil)
     builder = RowBuilder.new(id: id)
     @components << builder
     yield builder if block_given?
@@ -535,7 +535,7 @@ class OnyxCord::Webhooks::View
 
   # Add a section component to the view.
   # @see SectionBuilder#initialize
-  def section(id: nil, &block)
+  def section(id: nil)
     builder = SectionBuilder.new(id: id)
     @components << builder
     yield builder if block_given?
@@ -552,7 +552,7 @@ class OnyxCord::Webhooks::View
 
   # Add a container component to the view.
   # @see ContainerBuilder#initialize
-  def container(id: nil, color: nil, colour: nil, spoiler: false, &block)
+  def container(id: nil, color: nil, colour: nil, spoiler: false)
     builder = ContainerBuilder.new(id: id, color: color, colour: colour, spoiler: spoiler)
     @components << builder
     yield builder if block_given?
@@ -569,7 +569,7 @@ class OnyxCord::Webhooks::View
 
   # Add a media gallery component to the view.
   # @see MediaGalleryBuilder#initialize
-  def media_gallery(*items, id: nil, &block)
+  def media_gallery(*items, id: nil)
     builder = MediaGalleryBuilder.new(*items, id: id)
     @components << builder
     yield builder if block_given?

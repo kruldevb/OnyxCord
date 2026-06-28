@@ -1,8 +1,8 @@
 # frozen_string_literal: true
 
-require 'websocket-client-simple'
+# Voice networking — uses OnyxCord::WebSocket (async-websocket based)
 require 'socket'
-require 'json'
+require 'onyxcord/json'
 
 require 'onyxcord/websocket'
 require 'onyxcord/voice/opcodes'

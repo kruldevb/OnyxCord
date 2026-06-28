@@ -247,7 +247,7 @@ describe OnyxCord::Webhook do
   end
 
   describe '#execute' do
-    let(:resp) { instance_double(RestClient::Response) }
+    let(:resp) { instance_double(OnyxCord::HTTP::Response) }
     let(:data) { instance_double(Hash) }
 
     before do
@@ -302,7 +302,7 @@ describe OnyxCord::Webhook do
   describe '#edit_message' do
     let(:message) { instance_double(String, resolve_id: message_id) }
     let(:message_id) { instance_double(Integer) }
-    let(:resp) { instance_double(RestClient::Response) }
+    let(:resp) { instance_double(OnyxCord::HTTP::Response) }
     let(:data) { instance_double(Hash) }
 
     before do

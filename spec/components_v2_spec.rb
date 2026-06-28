@@ -285,19 +285,19 @@ describe 'Components V2 support' do
   describe OnyxCord::Webhooks::Client do
     it 'sends Components V2 flags and with_components for direct webhook execution' do
       client = described_class.new(url: 'https://discord.com/api/v9/webhooks/1/token')
-      allow(RestClient).to receive(:post)
+      allow(OnyxCord::HTTP).to receive(:post)
 
       client.execute(nil, false) do |_builder, view|
         view.text_display(content: 'Webhook UI')
       end
 
-      expect(RestClient).to have_received(:post) do |url, body, headers|
+      expect(OnyxCord::HTTP).to have_received(:post) do |url, body, headers|
         expect(url).to eq('https://discord.com/api/v9/webhooks/1/token?wait=false&with_components=true')
         expect(JSON.parse(body)).to include(
           'flags' => flag,
           'components' => [{ 'type' => 10, 'content' => 'Webhook UI' }]
         )
-        expect(headers).to eq(content_type: :json)
+        expect(headers).to eq('content-type' => 'application/json')
       end
     end
   end
@@ -391,8 +391,27 @@ describe 'Components V2 support' do
       expect(label.label).to eq('Pick many')
       expect(label.description).to eq('Choose all that apply')
       expect(label.component).to be_a(OnyxCord::Components::CheckboxGroup)
+      expect(label.custom_id).to eq('days')
+      expect(label.values).to eq(%w[mon fri])
+      expect(label.value).to be_nil
       expect(label.component.custom_id).to eq('days')
       expect(label.component.values).to eq(%w[mon fri])
+
+      text_label = described_class.from_data(
+        {
+          'type' => 18,
+          'label' => 'Prompt',
+          'component' => {
+            'type' => 4,
+            'custom_id' => 'aichat_prompt',
+            'value' => 'Answer like OnyxAI.'
+          }
+        },
+        double('bot')
+      )
+      expect(text_label.custom_id).to eq('aichat_prompt')
+      expect(text_label.value).to eq('Answer like OnyxAI.')
+      expect(text_label.values).to be_nil
 
       expect(
         described_class.from_data(

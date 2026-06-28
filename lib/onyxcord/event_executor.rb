@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require 'async'
+
 module OnyxCord
   # Event execution strategies used by bot dispatch.
   module EventExecutor
@@ -18,21 +20,20 @@ module OnyxCord
       end
     end
 
-    # Fixed-size worker pool for event handlers.
+    # Async-based worker pool for event handlers.
+    # Uses Async tasks (fibers) instead of threads for lightweight concurrency.
     class Pool
-      attr_reader :threads, :queue
+      attr_reader :queue
 
       def initialize(size:, queue_size: nil)
         raise ArgumentError, 'Pool size must be greater than zero' unless size.positive?
 
+        @size = size
         @queue = queue_size ? SizedQueue.new(queue_size) : Queue.new
         @closed = false
-        @threads = Array.new(size) do |index|
-          Thread.new do
-            Thread.current[:onyxcord_name] = "event-worker-#{index + 1}"
-            worker_loop
-          end
-        end
+        @workers = []
+
+        start_workers
       end
 
       def post(&block)
@@ -46,15 +47,33 @@ module OnyxCord
         @queue.size
       end
 
+      # Compatibility with code that checks worker threads.
+      def threads
+        @workers
+      end
+
       def shutdown
         return if @closed
 
         @closed = true
-        @threads.length.times { @queue << STOP }
-        @threads.each { |thread| thread.join unless thread == Thread.current }
+        @size.times { @queue << STOP }
+        @workers.each do |w|
+          w.join unless w == Thread.current
+        rescue StandardError
+          nil
+        end
       end
 
       private
+
+      def start_workers
+        @workers = Array.new(@size) do |index|
+          Thread.new do
+            Thread.current[:onyxcord_name] = "event-worker-#{index + 1}"
+            worker_loop
+          end
+        end
+      end
 
       def worker_loop
         loop do

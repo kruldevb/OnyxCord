@@ -1,62 +1,81 @@
 # frozen_string_literal: true
 
-require 'websocket-client-simple'
+require 'async'
+require 'async/http/endpoint'
+require 'async/websocket/client'
 
 module OnyxCord
-  # Utility wrapper class that abstracts an instance of WSCS. Useful should we decide that WSCS isn't good either -
-  # in that case we can just switch to something else
+  # Wrapper around async-websocket that provides the same callback-based
+  # interface used by the Gateway and Voice subsystems. This replaces the
+  # previous websocket-client-simple implementation.
   class WebSocket
-    attr_reader :open_handler, :message_handler, :close_handler, :error_handler
+    # @return [Boolean] whether the connection is currently open.
+    attr_reader :connected
 
-    # Create a new WebSocket and connect to the given endpoint.
-    # @param endpoint [String] Where to connect to.
-    # @param open_handler [#call] The handler that should be called when the websocket has opened successfully.
-    # @param message_handler [#call] The handler that should be called when the websocket receives a message. The
-    #   handler can take one parameter which will have a `data` attribute for normal messages and `code` and `data` for
-    #   close frames.
-    # @param close_handler [#call] The handler that should be called when the websocket is closed due to an internal
-    #   error. The error will be passed as the first parameter to the handler.
-    # @param error_handler [#call] The handler that should be called when an error occurs in another handler. The error
-    #   will be passed as the first parameter to the handler.
-    def initialize(endpoint, open_handler, message_handler, close_handler, error_handler)
-      OnyxCord::LOGGER.debug "Using WSCS version: #{::WebSocket::Client::Simple::VERSION}"
+    alias_method :connected?, :connected
 
+    # Creates a new WebSocket wrapper.
+    # @param host [String]            The `wss://` endpoint URL to connect to.
+    # @param open_handler [Proc]      Called once the connection is established.
+    # @param message_handler [Proc]   Called for every text frame received.
+    # @param error_handler [Proc]     Called when an error occurs.
+    # @param close_handler [Proc]     Called when the connection closes.
+    def initialize(host, open_handler, message_handler, error_handler, close_handler)
+      @host = host
       @open_handler = open_handler
       @message_handler = message_handler
-      @close_handler = close_handler
       @error_handler = error_handler
+      @close_handler = close_handler
 
-      instance = self # to work around WSCS's weird way of handling blocks
+      @connection = nil
+      @connected = false
 
-      @client = ::WebSocket::Client::Simple.connect(endpoint) do |ws|
-        ws.on(:open) { instance.open_handler.call }
-        ws.on(:message) do |msg|
-          # If the message has a code attribute, it is in reality a close message
-          if msg.code
-            instance.close_handler.call(msg)
-          else
-            instance.message_handler.call(msg.data)
-          end
-        end
-        ws.on(:close) { |err| instance.close_handler.call(err) }
-        ws.on(:error) { |err| instance.error_handler.call(err) }
-      end
+      connect
     end
 
-    # Send data over this WebSocket
-    # @param data [String] What to send
+    # Send a text message over the WebSocket.
+    # @param data [String, Hash] Data to send. Hashes are JSON-encoded automatically.
     def send(data)
-      @client.send(data)
+      return unless @connection
+
+      data = data.to_json if data.is_a?(Hash)
+      @connection.write(Protocol::WebSocket::TextMessage.generate(data))
+      @connection.flush
+    rescue StandardError => e
+      @error_handler&.call(e)
     end
 
-    # Close the WebSocket connection
+    # Cleanly close the connection.
     def close
-      @client.close
+      @connected = false
+      @connection&.close
+    rescue StandardError
+      # Ignore errors on close
     end
 
-    # @return [Thread] the internal WSCS thread
-    def thread
-      @client.thread
+    private
+
+    def connect
+      endpoint = Async::HTTP::Endpoint.parse(@host)
+
+      Async do
+        Async::WebSocket::Client.connect(endpoint) do |connection|
+          @connection = connection
+          @connected = true
+          @open_handler&.call
+
+          while (message = connection.read)
+            @message_handler&.call(message.to_str)
+          end
+        rescue StandardError => e
+          @error_handler&.call(e)
+        ensure
+          @connected = false
+          @close_handler&.call(nil)
+        end
+      end
+    rescue StandardError => e
+      @error_handler&.call(e)
     end
   end
 end

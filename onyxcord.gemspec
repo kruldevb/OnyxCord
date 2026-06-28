@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 require_relative 'lib/onyxcord/version'
-require_relative 'lib/onyxcord/webhooks/version'
 
 Gem::Specification.new do |spec|
   spec.name          = 'onyxcord'
@@ -14,7 +13,7 @@ Gem::Specification.new do |spec|
   spec.homepage      = 'https://github.com/kruldevb/OnyxCord'
   spec.license       = 'MIT'
 
-  spec.files         = `git ls-files -z`.split("\x0").reject { |f| f.match(%r{^(test|spec|features|examples|lib/onyxcord/webhooks)/}) }
+  spec.files         = `git ls-files -z`.split("\x0").reject { |f| f.match(%r{^(test|spec|features|examples)/}) }
   spec.bindir        = 'exe'
   spec.executables   = spec.files.grep(%r{^exe/}) { |f| File.basename(f) }
   spec.metadata = {
@@ -26,15 +25,29 @@ Gem::Specification.new do |spec|
   }
   spec.require_paths = ['lib']
 
+  # Modern async runtime & networking
+  spec.add_dependency 'async', '>= 2.0', '< 3'
+  spec.add_dependency 'async-http', '>= 0.75', '< 1'
+  spec.add_dependency 'async-websocket', '>= 0.26', '< 1'
+
+  # HTTP client (modern, HTTP/2, persistent connections)
+  spec.add_dependency 'httpx', '>= 1.0', '< 2'
+
+  # Fast JSON parsing
+  spec.add_dependency 'oj', '>= 3.0', '< 4'
+
+  # Smart LRU caching
+  spec.add_dependency 'lru_redux', '>= 1.0', '< 2'
+
+  # Core dependencies
   spec.add_dependency 'base64', '~> 0.2'
+  spec.add_dependency 'mime-types', '~> 3.0'
+
+  # Voice support
   spec.add_dependency 'ffi', '>= 1.9.24', '< 2'
   spec.add_dependency 'opus-ruby', '>= 0', '< 2'
-  spec.add_dependency 'rest-client', '>= 2.0.0', '< 3'
-  spec.add_dependency 'websocket-client-simple', '>= 0.9.0', '< 1'
 
-  spec.add_dependency 'onyxcord-webhooks', "~> #{OnyxCord::Webhooks::VERSION}"
-
-  spec.required_ruby_version = '>= 3.3'
+  spec.required_ruby_version = '>= 3.4'
 
   spec.add_development_dependency 'bundler', '>= 1.10', '< 5'
   spec.add_development_dependency 'rake', '~> 13.0'

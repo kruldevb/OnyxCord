@@ -480,24 +480,18 @@ module OnyxCord::Commands
     end
 
     def execute_chain(chain, event)
-      t = Thread.new do
-        @event_threads << t
-        Thread.current[:onyxcord_name] = "ct-#{@current_thread += 1}"
-        begin
-          debug("Parsing command chain #{chain}")
-          result = @attributes[:advanced_functionality] ? CommandChain.new(chain, self).execute(event) : simple_execute(chain, event)
-          result = event.drain_into(result)
+      Async do
+        debug("Parsing command chain #{chain}")
+        result = @attributes[:advanced_functionality] ? CommandChain.new(chain, self).execute(event) : simple_execute(chain, event)
+        result = event.drain_into(result)
 
-          if event.file
-            event.send_file(event.file, caption: result)
-          else
-            event.respond result unless result.nil? || result.empty?
-          end
-        rescue StandardError => e
-          log_exception(e)
-        ensure
-          @event_threads.delete(t)
+        if event.file
+          event.send_file(event.file, caption: result)
+        else
+          event.respond result unless result.nil? || result.empty?
         end
+      rescue StandardError => e
+        log_exception(e)
       end
     end
 

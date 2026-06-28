@@ -51,7 +51,7 @@ module OnyxCord::Webhooks
 
     # @return [true, false] whether Components V2 is enabled on this payload.
     def components_v2?
-      (@flags.to_i & OnyxCord::MessageComponents::IS_COMPONENTS_V2).positive?
+      @flags.to_i.anybits?(OnyxCord::MessageComponents::IS_COMPONENTS_V2)
     end
 
     # Sets a file to be sent together with the message. Mutually exclusive with embeds; a webhook message can contain

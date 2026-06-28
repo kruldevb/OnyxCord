@@ -1,5 +1,33 @@
 # Changelog
 
+## 2.0.0 - 2026-06-28
+
+### Arquitetura & Performance (Major Refactoring)
+
+- **Runtime 100% Async**: A infraestrutura de threads (`Thread.new`) foi substituída pelo modelo de fibers do Ruby usando a gem `async`. Gateway, heartbeats, fila REST, worker de eventos e comandos agora executam de forma não-bloqueante no reator Async.
+- **REST Moderno via HTTPX**: Substituída a gem legada `rest-client` pela `httpx`, trazendo suporte nativo a conexões persistentes (Keep-Alive), HTTP/2, multipart uploads nativos e retries automáticos em erros 502.
+- **Gateway via Async-WebSocket**: Substituída a implementação de raw TCP sockets + `websocket-client-simple` por `async-websocket`, proporcionando um event loop de gateway extremamente rápido e escalável.
+- **Parse JSON via Oj**: A gem `oj` foi integrada em modo de compatibilidade (`mode: :compat`), acelerando transparentemente todas as serializações e deserializações de pacotes do Discord na lib inteira.
+- **Cache Inteligente LRU**: Os caches em memória (usuários, canais, servidores, membros) agora utilizam `LruRedux::ThreadSafeCache`. Os tamanhos padrão foram aumentados (`users: 50_000`, `channels: 10_000`, `servers: 1_000`, `members: 100_000`) e podem ser customizados via `OnyxCord.configure { |c| c.cache_sizes.users = 100_000 }`.
+- **Fusão do Webhooks**: A funcionalidade da gem separada `onyxcord-webhooks` foi integrada diretamente no núcleo da gem `onyxcord`. A gem `onyxcord-webhooks` agora atua apenas como um shim de transição deprecado.
+- **Alvo Ruby ≥ 3.4**: Atualizada a versão mínima requerida do Ruby para aproveitar as otimizações modernas do interpretador e fibras.
+
+## 1.1.8 - 2026-06-28
+
+### Correcoes
+
+- `Components::Label` agora delega `custom_id`, `value` e `values` para o componente interativo interno, mantendo compatibilidade com codigo legado de modal que itera por `event.components`.
+- Modais modernos continuam preservando `label`, `description` e `component`, enquanto `event.value(custom_id)`, `event.values(custom_id)` e acesso direto em `event.components` funcionam de forma consistente.
+
+### Validacao
+
+- `bundle exec rspec spec/components_v2_spec.rb`: sucesso.
+- `bundle exec rspec`: 460 exemplos, 0 falhas, 3 pendentes.
+- `ruby -c lib/onyxcord/data/component.rb`: sucesso.
+- `ruby -c spec/components_v2_spec.rb`: sucesso.
+- `gem build onyxcord.gemspec`: sucesso.
+- `gem build onyxcord-webhooks.gemspec`: sucesso.
+
 ## 1.1.7 - 2026-06-28
 
 ### Melhorias

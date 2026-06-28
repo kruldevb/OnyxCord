@@ -43,11 +43,53 @@ module OnyxCord
       }
     }.freeze
 
-    attr_accessor :mode, :cache, :event_executor, :event_workers, :event_queue_size
+    # Stores maximum limits for each LRU cache entity type.
+    class CacheSizes
+      attr_accessor :servers, :channels, :users, :members, :pm_channels, :thread_members, :server_previews
+
+      def initialize
+        @servers = 1000
+        @channels = 10_000
+        @users = 50_000
+        @members = 100_000
+        @pm_channels = 1000
+        @thread_members = 5000
+        @server_previews = 100
+      end
+
+      def [](key)
+        send(key)
+      end
+
+      def []=(key, value)
+        send("#{key}=", value)
+      end
+
+      def to_h
+        {
+          servers: @servers,
+          channels: @channels,
+          users: @users,
+          members: @members,
+          pm_channels: @pm_channels,
+          thread_members: @thread_members,
+          server_previews: @server_previews
+        }
+      end
+
+      def dup
+        copy = self.class.new
+        to_h.each { |k, v| copy[k] = v }
+        copy
+      end
+    end
+
+    attr_accessor :mode, :cache, :cache_sizes, :event_executor, :event_workers, :event_queue_size
 
     def initialize
       @mode = :hybrid
       @cache = :none
+      @cache_sizes = CacheSizes.new
       @event_executor = :pool
       @event_workers = 4
       @event_queue_size = nil
@@ -57,6 +99,7 @@ module OnyxCord
       copy = self.class.new
       copy.mode = @mode
       copy.cache = @cache.is_a?(Hash) ? @cache.dup : @cache
+      copy.cache_sizes = @cache_sizes.dup
       copy.event_executor = @event_executor
       copy.event_workers = @event_workers
       copy.event_queue_size = @event_queue_size

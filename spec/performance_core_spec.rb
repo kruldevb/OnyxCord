@@ -127,8 +127,8 @@ describe 'OnyxCord performance core' do
     it 'allocates only server and channel maps for :minimal' do
       bot = build_bot(cache: :minimal)
 
-      expect(bot.instance_variable_get(:@servers)).to eq({})
-      expect(bot.instance_variable_get(:@channels)).to eq({})
+      expect(bot.instance_variable_get(:@servers)).to be_a(LruRedux::ThreadSafeCache)
+      expect(bot.instance_variable_get(:@channels)).to be_a(LruRedux::ThreadSafeCache)
       expect(bot.instance_variable_get(:@users)).to be_nil
       expect(bot.instance_variable_get(:@thread_members)).to be_nil
     end
@@ -136,17 +136,17 @@ describe 'OnyxCord performance core' do
     it 'allocates all cache maps for :full' do
       bot = build_bot(cache: :full)
 
-      expect(bot.instance_variable_get(:@servers)).to eq({})
-      expect(bot.instance_variable_get(:@channels)).to eq({})
-      expect(bot.instance_variable_get(:@users)).to eq({})
-      expect(bot.instance_variable_get(:@thread_members)).to eq({})
+      expect(bot.instance_variable_get(:@servers)).to be_a(LruRedux::ThreadSafeCache)
+      expect(bot.instance_variable_get(:@channels)).to be_a(LruRedux::ThreadSafeCache)
+      expect(bot.instance_variable_get(:@users)).to be_a(LruRedux::ThreadSafeCache)
+      expect(bot.instance_variable_get(:@thread_members)).to be_a(LruRedux::ThreadSafeCache)
     end
 
     it 'accepts hash overrides' do
       bot = build_bot(cache: { servers: true, users: true })
 
-      expect(bot.instance_variable_get(:@servers)).to eq({})
-      expect(bot.instance_variable_get(:@users)).to eq({})
+      expect(bot.instance_variable_get(:@servers)).to be_a(LruRedux::ThreadSafeCache)
+      expect(bot.instance_variable_get(:@users)).to be_a(LruRedux::ThreadSafeCache)
       expect(bot.instance_variable_get(:@channels)).to be_nil
     end
 

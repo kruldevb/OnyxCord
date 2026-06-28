@@ -1,9 +1,14 @@
 # frozen_string_literal: true
 
+require 'base64'
+require 'mime/types'
+require 'onyxcord/json'
+require 'onyxcord/http'
 require 'onyxcord/version'
 require 'onyxcord/configuration'
 require 'onyxcord/event_executor'
 require 'onyxcord/message_components'
+require 'onyxcord/webhooks'
 require 'onyxcord/bot'
 require 'onyxcord/commands/command_bot'
 require 'onyxcord/logger'

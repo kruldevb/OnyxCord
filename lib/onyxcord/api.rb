@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
-require 'rest-client'
-require 'json'
+require 'onyxcord/http'
+require 'onyxcord/json'
 require 'time'
 
 require 'onyxcord/errors'
@@ -55,7 +55,7 @@ module OnyxCord::API
     required = "DiscordBot (https://github.com/kruldevb/OnyxCord, v#{OnyxCord::VERSION})"
     @bot_name ||= ''
 
-    "#{required} rest-client/#{RestClient::VERSION} #{RUBY_ENGINE}/#{RUBY_VERSION}p#{RUBY_PATCHLEVEL} onyxcord/#{OnyxCord::VERSION} #{@bot_name}"
+    "#{required} httpx/#{HTTPX::VERSION} #{RUBY_ENGINE}/#{RUBY_VERSION}p#{RUBY_PATCHLEVEL} onyxcord/#{OnyxCord::VERSION} #{@bot_name}"
   end
 
   # Resets all rate limit mutexes
@@ -82,49 +82,96 @@ module OnyxCord::API
     mutex.unlock
   end
 
-  # Performs a RestClient request.
+  # Performs a raw HTTP request using HTTPX.
   # @param type [Symbol] The type of HTTP request to use.
-  # @param attributes [Array] The attributes for the request.
-  def raw_request(type, attributes)
-    RestClient.send(type, *attributes)
-  rescue RestClient::Forbidden => e
-    # HACK: for #request, dynamically inject restclient's response into NoPermission - this allows us to rate limit
-    noprm = OnyxCord::Errors::NoPermission.new
-    noprm.define_singleton_method(:_rc_response) { e.response }
-    raise noprm, "The bot doesn't have the required permission to do this!"
-  rescue RestClient::BadGateway
-    OnyxCord::LOGGER.warn('Got a 502 while sending a request! Not a big deal, retrying the request')
-    retry
+  # @param url [String] The URL to request.
+  # @param body [String, Hash, nil] The request body.
+  # @param headers [Hash] Additional headers.
+  # @return [OnyxCord::HTTP::Response]
+  def raw_request(type, url, body = nil, **headers)
+    headers[:user_agent] = user_agent
+
+    response = OnyxCord::HTTP.request(type, url, body, **headers)
+
+    if response.code == 403
+      noprm = OnyxCord::Errors::NoPermission.new
+      noprm.define_singleton_method(:_response) { response }
+      raise noprm, "The bot doesn't have the required permission to do this!"
+    end
+
+    # Retry on 502 Bad Gateway
+    if response.code == 502
+      OnyxCord::LOGGER.warn('Got a 502 while sending a request! Not a big deal, retrying the request')
+      return raw_request(type, url, body, **headers)
+    end
+
+    response
   end
 
   # Make an API request, including rate limit handling.
   def request(key, major_parameter, type, *attributes)
-    # Add a custom user agent
-    attributes.last[:user_agent] = user_agent if attributes.last.is_a? Hash
+    # Parse attributes: URL is first, body is second (if present), rest is headers hash
+    url = attributes.shift
+    headers_or_body = attributes
+
+    # Separate body and headers from the positional args
+    body = nil
+    headers = {}
+
+    headers_or_body.each do |arg|
+      if arg.is_a?(Hash)
+        headers.merge!(arg)
+      elsif body.nil?
+        body = arg
+      end
+    end
+
+    # Extract content_type from headers for HTTPX
+    content_type = headers.delete(:content_type)
+    headers['content-type'] = 'application/json' if content_type == :json
+
+    # Add user agent
+    headers['user-agent'] = user_agent
 
     begin
       rate_limiter.before_request(key, major_parameter)
 
       response = nil
       begin
-        response = raw_request(type, attributes)
-      rescue RestClient::Exception => e
-        response = e.response
+        response = OnyxCord::HTTP.request(type, url, body, **headers)
 
-        if response.body && !e.is_a?(RestClient::TooManyRequests)
-          data = JSON.parse(response.body)
-          err_klass = OnyxCord::Errors.error_class_for(data['code'] || 0)
-          e = err_klass.new(data['message'], data['errors'])
-
-          OnyxCord::LOGGER.error(e.full_message)
+        if response.code == 403
+          noprm = OnyxCord::Errors::NoPermission.new
+          noprm.define_singleton_method(:_response) { response }
+          raise noprm, "The bot doesn't have the required permission to do this!"
         end
 
-        raise e
+        # Retry on 502
+        if response.code == 502
+          OnyxCord::LOGGER.warn('Got a 502 while sending a request! Not a big deal, retrying the request')
+          return request(key, major_parameter, type, url, body, headers)
+        end
+
+        # Handle error status codes
+        if response.code >= 400 && response.code != 429
+          data = begin
+            JSON.parse(response.body)
+          rescue StandardError
+            nil
+          end
+
+          raise "HTTP #{response.code}: #{response.body}" unless data
+
+          err_klass = OnyxCord::Errors.error_class_for(data['code'] || 0)
+          e = err_klass.new(data['message'], data['errors'])
+          OnyxCord::LOGGER.error(e.full_message)
+          raise e
+        end
       rescue OnyxCord::Errors::NoPermission => e
-        if e.respond_to?(:_rc_response)
-          response = e._rc_response
+        if e.respond_to?(:_response)
+          response = e._response
         else
-          OnyxCord::LOGGER.warn("NoPermission doesn't respond_to? _rc_response!")
+          OnyxCord::LOGGER.warn("NoPermission doesn't respond_to? _response!")
         end
 
         raise e
@@ -135,27 +182,33 @@ module OnyxCord::API
           OnyxCord::LOGGER.ratelimit('Response was nil before trying to preemptively rate limit!')
         end
       end
-    rescue RestClient::TooManyRequests => e
-      trace("429 #{key} #{major_parameter}")
-      rate_limiter.handle_rate_limit(key, major_parameter, e.response)
+    rescue OnyxCord::Errors::CodeError => e
+      raise if e.respond_to?(:code) && e.code != 429_000
 
-      retry
+      raise
+    end
+
+    # Handle 429 rate limiting
+    if response&.code == 429
+      trace("429 #{key} #{major_parameter}")
+      rate_limiter.handle_rate_limit(key, major_parameter, response)
+      return request(key, major_parameter, type, url, body, headers)
     end
 
     # Endpoints that use Elasticsearch can return a 202 when the index isn't ready yet. Wait the
     # amount of time indicated by the response body, and then recursively retry and return the request.
     if response&.code == 202 && response&.body
-      body = JSON.parse(response.body)
+      body_data = JSON.parse(response.body)
 
-      if body['code'] == 110_000
-        case body['retry_after']
+      if body_data['code'] == 110_000
+        case body_data['retry_after']
         when 0, 1, nil
           sleep(rand(4.5..5.0))
         else
-          sleep(body['retry_after'])
+          sleep(body_data['retry_after'])
         end
 
-        return request(key, major_parameter, type, *attributes)
+        return request(key, major_parameter, type, url, body, headers)
       end
     end
 

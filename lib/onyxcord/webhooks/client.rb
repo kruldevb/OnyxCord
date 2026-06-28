@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
-require 'rest-client'
-require 'json'
+require 'onyxcord/http'
+require 'onyxcord/json'
 
 require 'onyxcord/webhooks/builder'
 
@@ -38,7 +38,7 @@ module OnyxCord::Webhooks
     #       embed.image = OnyxCord::Webhooks::EmbedImage.new(url: 'https://i.imgur.com/PcMltU7.jpg')
     #     end
     #   end
-    # @return [RestClient::Response] the response returned by Discord.
+    # @return [OnyxCord::HTTP::Response] the response returned by Discord.
     def execute(builder = nil, wait = false, components = nil, thread_id: nil, flags: nil, has_components: false, components_v2: false)
       raise TypeError, 'builder needs to be nil or like a OnyxCord::Webhooks::Builder!' unless
         (builder.respond_to?(:file) && builder.respond_to?(:to_multipart_hash)) || builder.respond_to?(:to_json_hash) || builder.nil?
@@ -61,17 +61,21 @@ module OnyxCord::Webhooks
     # @param name [String, nil] The default name.
     # @param avatar [String, #read, nil] The new avatar, in base64-encoded JPG format.
     # @param channel_id [String, Integer, nil] The channel to move the webhook to.
-    # @return [RestClient::Response] the response returned by Discord.
+    # @return [OnyxCord::HTTP::Response] the response returned by Discord.
     def modify(name: nil, avatar: nil, channel_id: nil)
-      RestClient.patch(@url, { name: name, avatar: avatarise(avatar), channel_id: channel_id }.compact.to_json, content_type: :json)
+      OnyxCord::HTTP.patch(
+        @url,
+        { name: name, avatar: avatarise(avatar), channel_id: channel_id }.compact.to_json,
+        'content-type' => 'application/json'
+      )
     end
 
     # Delete this webhook.
     # @param reason [String, nil] The reason this webhook was deleted.
-    # @return [RestClient::Response] the response returned by Discord.
+    # @return [OnyxCord::HTTP::Response] the response returned by Discord.
     # @note This is permanent and cannot be undone.
     def delete(reason: nil)
-      RestClient.delete(@url, 'X-Audit-Log-Reason': reason)
+      OnyxCord::HTTP.delete(@url, 'X-Audit-Log-Reason' => reason)
     end
 
     # Edit a message from this webhook.
@@ -81,7 +85,7 @@ module OnyxCord::Webhooks
     # @param embeds [Array<Embed, Hash>]
     # @param allowed_mentions [Hash]
     # @param thread_id [String, Integer, nil] The id of the thread in which the message resides
-    # @return [RestClient::Response] the response returned by Discord.
+    # @return [OnyxCord::HTTP::Response] the response returned by Discord.
     # @example Edit message content
     #   client.edit_message(message_id, content: 'goodbye world!')
     # @example Edit a message via builder
@@ -102,17 +106,18 @@ module OnyxCord::Webhooks
       builder_flags = data[:flags] if data.is_a?(Hash)
       flags = View.apply_v2_flag(flags || builder_flags, components, force: has_components || components_v2)
       data = data.merge({ content: content, embeds: embeds, allowed_mentions: allowed_mentions, components: components, flags: flags }.compact)
-      RestClient.patch(
+      OnyxCord::HTTP.patch(
         "#{@url}/messages/#{message_id}#{(query.empty? ? '' : "?#{query}")}",
-        data.compact.to_json, content_type: :json
+        data.compact.to_json,
+        'content-type' => 'application/json'
       )
     end
 
     # Delete a message created by this webhook.
     # @param message_id [String, Integer] The ID of the message to delete.
-    # @return [RestClient::Response] the response returned by Discord.
+    # @return [OnyxCord::HTTP::Response] the response returned by Discord.
     def delete_message(message_id)
-      RestClient.delete("#{@url}/messages/#{message_id}")
+      OnyxCord::HTTP.delete("#{@url}/messages/#{message_id}")
     end
 
     private
@@ -134,7 +139,11 @@ module OnyxCord::Webhooks
       flags = View.apply_v2_flag(flags || builder_flags, components, force: has_components)
       data = data.merge({ components: components })
       data[:flags] = flags unless flags.nil?
-      RestClient.post(encode_url(wait, thread_id, with_components: components.any?), data.to_json, content_type: :json)
+      OnyxCord::HTTP.post(
+        encode_url(wait, thread_id, with_components: components.any?),
+        data.to_json,
+        'content-type' => 'application/json'
+      )
     end
 
     def post_multipart(builder, components, wait, thread_id, flags: nil, has_components: false)
@@ -144,7 +153,10 @@ module OnyxCord::Webhooks
       flags = View.apply_v2_flag(flags || builder_flags, components, force: has_components)
       data[:components] = components if components.any?
       data[:flags] = flags unless flags.nil?
-      RestClient.post(encode_url(wait, thread_id, with_components: components.any?), data.compact)
+      OnyxCord::HTTP.post(
+        encode_url(wait, thread_id, with_components: components.any?),
+        data.compact
+      )
     end
 
     def generate_url(id, token)

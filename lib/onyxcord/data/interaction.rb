@@ -111,19 +111,17 @@ module OnyxCord
       @channel_id = data['channel_id']&.to_i
       @channel = bot.ensure_channel(data['channel']) if data['channel']
       @user = begin
-                if data['member'] && data['member']['user']
-                  data['member']['guild_id'] = @server_id
-                  server = bot.servers ? bot.servers[@server_id] : nil
-                  OnyxCord::Member.new(data['member'], server, bot)
-                elsif data['user']
-                  bot.ensure_user(data['user'])
-                else
-                  nil
-                end
-              rescue StandardError => e
-                OnyxCord::LOGGER.error("Failed to parse interaction user/member: #{e}")
-                nil
-              end
+        if data['member'] && data['member']['user']
+          data['member']['guild_id'] = @server_id
+          server = bot.servers ? bot.servers[@server_id] : nil
+          OnyxCord::Member.new(data['member'], server, bot)
+        elsif data['user']
+          bot.ensure_user(data['user'])
+        end
+      rescue StandardError => e
+        OnyxCord::LOGGER.error("Failed to parse interaction user/member: #{e}")
+        nil
+      end
       @token = data['token']
       @version = data['version']
       @components = @data['components']&.filter_map { |component| Components.from_data(component, @bot) } || []

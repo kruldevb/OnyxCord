@@ -23,7 +23,6 @@ module OnyxCord::API::Channel
     { **files, payload_json: body.to_json }
   end
 
-
   # Get a channel's data
   # https://discord.com/developers/docs/resources/channel#get-channel
   def resolve(token, channel_id)
@@ -111,7 +110,7 @@ module OnyxCord::API::Channel
   # @param attachments [Array<File>, nil] Attachments to use with `attachment://` in embeds. See
   #   https://discord.com/developers/docs/resources/channel#create-message-using-attachments-within-embeds
   def create_message(token, channel_id, message, tts = false, embeds = nil, nonce = nil, attachments = nil, allowed_mentions = nil, message_reference = nil, components = nil, flags = nil, enforce_nonce = false, poll = nil)
-    tts = false unless tts == true || tts == false
+    tts = false unless [true, false].include?(tts)
     components = OnyxCord::MessageComponents.payload(components) unless components.nil?
     flags = OnyxCord::MessageComponents.apply_v2_flag(flags, components)
     body = { content: message, tts: tts == true, embeds: embeds, nonce: nonce, allowed_mentions: allowed_mentions, message_reference: message_reference, components: components, attachments: attachments ? attachment_payload(attachments) : nil, flags: flags, enforce_nonce: enforce_nonce, poll: poll }.compact
@@ -132,11 +131,6 @@ module OnyxCord::API::Channel
       body,
       **headers
     )
-  rescue RestClient::BadRequest => e
-    parsed = JSON.parse(e.response.body)
-    raise OnyxCord::Errors::MessageTooLong, "Message over the character limit (#{message.length} > 2000)" if parsed['content'].is_a?(Array) && parsed['content'].first == 'Must be 2000 or fewer in length.'
-
-    raise
   end
 
   # Send a file as a message to a channel
@@ -425,12 +419,6 @@ module OnyxCord::API::Channel
       Authorization: token,
       content_type: :json
     )
-  rescue RestClient::InternalServerError
-    raise 'Attempted to add self as a new group channel recipient!'
-  rescue RestClient::NoContent
-    raise 'Attempted to create a group channel with the PM channel recipient!'
-  rescue RestClient::Forbidden
-    raise 'Attempted to add a user to group channel without permission!'
   end
 
   # Add a user to a group channel.

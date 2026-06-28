@@ -8,23 +8,32 @@ Gem::Specification.new do |spec|
   spec.authors       = ['Gustavo Silva']
   spec.email         = ['gustavosilva8kt@gmail.com']
 
-  spec.summary       = 'Webhook client for onyxcord'
-  spec.description   = "Webhook client for OnyxCord with Components V2 support and community support: https://discord.gg/Jy2tpCUtzM."
+  spec.summary       = '[DEPRECATED] Webhook client for onyxcord — now bundled into the onyxcord gem'
+  spec.description   = "This gem is deprecated. Webhooks are now included in the onyxcord gem. Install 'onyxcord' instead."
   spec.homepage      = 'https://github.com/kruldevb/OnyxCord'
   spec.license       = 'MIT'
 
-  spec.files         = `git ls-files -z lib/onyxcord/webhooks/`.split("\x0") + ['lib/onyxcord/webhooks.rb']
+  spec.files         = ['lib/onyxcord/webhooks.rb', 'lib/onyxcord/webhooks/version.rb']
   spec.bindir        = 'exe'
   spec.executables   = spec.files.grep(%r{^exe/}) { |f| File.basename(f) }
   spec.require_paths = ['lib']
 
-  spec.add_dependency 'rest-client', '>= 2.0.0', '< 3'
+  # This gem now simply depends on the main onyxcord gem
+  spec.add_dependency 'onyxcord', "~> #{OnyxCord::Webhooks::VERSION}"
 
-  spec.required_ruby_version = '>= 3.3'
+  spec.required_ruby_version = '>= 3.4'
   spec.metadata = {
     'bug_tracker_uri' => 'https://github.com/kruldevb/OnyxCord/issues',
     'documentation_uri' => 'https://github.com/kruldevb/OnyxCord#readme',
     'source_code_uri' => 'https://github.com/kruldevb/OnyxCord',
     'rubygems_mfa_required' => 'true'
   }
+
+  spec.post_install_message = <<~MSG
+    ⚠️  onyxcord-webhooks is DEPRECATED.
+    Webhooks are now bundled into the 'onyxcord' gem.
+    Please update your Gemfile:
+      gem 'onyxcord', '~> 2.0'
+    and remove 'onyxcord-webhooks'.
+  MSG
 end

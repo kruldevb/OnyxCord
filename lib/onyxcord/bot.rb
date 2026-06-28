@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require 'rest-client'
+require 'onyxcord/http'
 require 'zlib'
 
 require 'onyxcord/configuration'
@@ -477,9 +477,7 @@ module OnyxCord
     # @param enforce_nonce [true, false] Whether the nonce should be enforced and used for message de-duplication.
     # @param poll [Hash, Poll::Builder, Poll, nil] The poll that should be attached to this message.
     def send_temporary_message(channel, content, timeout, tts = false, embeds = nil, attachments = nil, allowed_mentions = nil, message_reference = nil, components = nil, flags = 0, nonce = nil, enforce_nonce = false, poll = nil)
-      Thread.new do
-        Thread.current[:onyxcord_name] = "#{@current_thread}-temp-msg"
-
+      Async do
         message = send_message(channel, content, tts, embeds, attachments, allowed_mentions, message_reference, components, flags, nonce, enforce_nonce, poll)
         sleep(timeout)
         message.delete
@@ -504,7 +502,6 @@ module OnyxCord
           filename ||= File.basename(file.path)
           filename = "SPOILER_#{filename}" unless filename.start_with? 'SPOILER_'
         end
-        # https://github.com/rest-client/rest-client/blob/v2.0.2/lib/restclient/payload.rb#L160
         file.define_singleton_method(:original_filename) { filename } if filename
         file.define_singleton_method(:path) { filename } if filename
       end
