@@ -9,6 +9,7 @@
 /profiles/
 /tmp/
 /.idea/
+/obsidian/
 .DS_Store
 *.gem
 **.sw*
