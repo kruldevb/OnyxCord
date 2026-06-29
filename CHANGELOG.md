@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.0.11 - 2026-06-28
+
+### Correcoes de estabilidade
+
+- Isola a sessao HTTP persistente por thread para evitar que tarefas em segundo plano disputem a mesma conexao REST das interacoes.
+
 ## 2.0.10 - 2026-06-28
 
 ### Correcoes de voz

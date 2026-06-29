@@ -45,15 +45,15 @@ module OnyxCord
 
     module_function
 
-    # The shared HTTPX session with persistent connections.
+    # The shared HTTPX session with persistent connections for the current thread.
     def session
-      @session ||= HTTPX.plugin(:persistent)
-                        .plugin(:follow_redirects)
+      Thread.current[:onyxcord_http_session] ||= HTTPX.plugin(:persistent)
+                                                 .plugin(:follow_redirects)
     end
 
     # Reset the HTTP session (useful for tests).
     def reset!
-      @session = nil
+      Thread.current[:onyxcord_http_session] = nil
     end
 
     # Perform a raw HTTP request and return a {Response}.
