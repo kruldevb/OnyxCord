@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.0.8 - 2026-06-28
+
+### Correcoes de gateway
+
+- Forca WebSocket do Gateway e do cliente generico em HTTP/1.1 para evitar `Async::WebSocket::ConnectionError: Failed to negotiate connection!` ao conectar no Discord.
+- Desativa extensoes WebSocket no handshake para evitar close `Error while decoding payload` no Gateway do Discord.
+
 ## 2.0.6 - 2026-06-28
 
 ### Correcoes de empacotamento

@@ -2,6 +2,7 @@
 
 require 'async'
 require 'async/http/endpoint'
+require 'async/http/protocol/http11'
 require 'async/websocket/client'
 require 'onyxcord/async/runtime'
 require 'onyxcord/rate_limiter/gateway'
@@ -293,9 +294,9 @@ module OnyxCord
       @pipe_broken = false
       @closed = false
 
-      endpoint = Async::HTTP::Endpoint.parse(url)
+      endpoint = websocket_endpoint(url)
 
-      Async::WebSocket::Client.connect(endpoint) do |connection|
+      Async::WebSocket::Client.connect(endpoint, extensions: nil) do |connection|
         @connection = connection
         LOGGER.debug('WebSocket connected')
 
@@ -311,6 +312,14 @@ module OnyxCord
     ensure
       @closed = true
       @connection = nil
+    end
+
+    def websocket_endpoint(url)
+      Async::HTTP::Endpoint.parse(
+        url,
+        protocol: Async::HTTP::Protocol::HTTP11,
+        alpn_protocols: ['http/1.1']
+      )
     end
 
     def handle_open; end
@@ -453,7 +462,7 @@ module OnyxCord
 
       @send_limiter.wait
 
-      @connection.write(Protocol::WebSocket::TextMessage.generate(data))
+      @connection.write(data)
       @connection.flush
     rescue StandardError => e
       @pipe_broken = true

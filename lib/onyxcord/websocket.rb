@@ -2,6 +2,7 @@
 
 require 'onyxcord/async/runtime'
 require 'async/http/endpoint'
+require 'async/http/protocol/http11'
 require 'async/websocket/client'
 
 module OnyxCord
@@ -43,10 +44,10 @@ module OnyxCord
     private
 
     def connect
-      endpoint = Async::HTTP::Endpoint.parse(@host)
+      endpoint = websocket_endpoint(@host)
 
       @task = OnyxCord::AsyncRuntime.async do
-        Async::WebSocket::Client.connect(endpoint) do |connection|
+        Async::WebSocket::Client.connect(endpoint, extensions: nil) do |connection|
           @connection = connection
           @connected = true
           @open_handler&.call
@@ -63,6 +64,14 @@ module OnyxCord
       end
     rescue StandardError => e
       @error_handler&.call(e)
+    end
+
+    def websocket_endpoint(url)
+      Async::HTTP::Endpoint.parse(
+        url,
+        protocol: Async::HTTP::Protocol::HTTP11,
+        alpn_protocols: ['http/1.1']
+      )
     end
   end
 end
