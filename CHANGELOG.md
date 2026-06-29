@@ -6,6 +6,7 @@
 
 - Forca WebSocket do Gateway e do cliente generico em HTTP/1.1 para evitar `Async::WebSocket::ConnectionError: Failed to negotiate connection!` ao conectar no Discord.
 - Desativa extensoes WebSocket no handshake para evitar close `Error while decoding payload` no Gateway do Discord.
+- Remove o empacotamento separado `onyxcord-webhooks`; webhooks continuam incluidos diretamente na gem `onyxcord`.
 
 ## 2.0.6 - 2026-06-28
 
@@ -71,7 +72,7 @@ bot.sync_application_commands!(server_id: ENV.fetch('DISCORD_SERVER_ID'))
 - **Gateway via Async-WebSocket**: Substituída a implementação de raw TCP sockets + `websocket-client-simple` por `async-websocket`, proporcionando um event loop de gateway extremamente rápido e escalável.
 - **Parse JSON via Oj**: A gem `oj` foi integrada em modo de compatibilidade (`mode: :compat`), acelerando transparentemente todas as serializações e deserializações de pacotes do Discord na lib inteira.
 - **Cache Inteligente LRU**: Os caches em memória (usuários, canais, servidores, membros) agora utilizam `LruRedux::ThreadSafeCache`. Os tamanhos padrão foram aumentados (`users: 50_000`, `channels: 10_000`, `servers: 1_000`, `members: 100_000`) e podem ser customizados via `OnyxCord.configure { |c| c.cache_sizes.users = 100_000 }`.
-- **Fusão do Webhooks**: A funcionalidade da gem separada `onyxcord-webhooks` foi integrada diretamente no núcleo da gem `onyxcord`. A gem `onyxcord-webhooks` agora atua apenas como um shim de transição deprecado.
+- **Fusão do Webhooks**: A funcionalidade da gem separada `onyxcord-webhooks` foi integrada diretamente no núcleo da gem `onyxcord`; nao ha mais pacote separado para publicar.
 - **Alvo Ruby ≥ 3.4**: Atualizada a versão mínima requerida do Ruby para aproveitar as otimizações modernas do interpretador e fibras.
 
 ## 1.1.8 - 2026-06-28
@@ -88,7 +89,6 @@ bot.sync_application_commands!(server_id: ENV.fetch('DISCORD_SERVER_ID'))
 - `ruby -c lib/onyxcord/data/component.rb`: sucesso.
 - `ruby -c spec/components_v2_spec.rb`: sucesso.
 - `gem build onyxcord.gemspec`: sucesso.
-- `gem build onyxcord-webhooks.gemspec`: sucesso.
 
 ## 1.1.7 - 2026-06-28
 
@@ -100,7 +100,6 @@ bot.sync_application_commands!(server_id: ENV.fetch('DISCORD_SERVER_ID'))
 ### Validacao
 
 - `ruby -c onyxcord.gemspec`: sucesso.
-- `ruby -c onyxcord-webhooks.gemspec`: sucesso.
 
 ## 1.1.6 - 2026-06-28
 
@@ -167,4 +166,3 @@ bot.sync_application_commands!(server_id: ENV.fetch('DISCORD_SERVER_ID'))
 - `bundle exec rspec`: 456 exemplos, 0 falhas, 3 pendentes.
 - RuboCop nos arquivos alterados: sem offenses.
 - `gem build onyxcord.gemspec`: sucesso.
-- `gem build onyxcord-webhooks.gemspec`: sucesso.

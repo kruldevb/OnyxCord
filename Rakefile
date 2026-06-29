@@ -6,12 +6,8 @@ namespace :main do
   Bundler::GemHelper.install_tasks(name: 'onyxcord')
 end
 
-namespace :webhooks do
-  Bundler::GemHelper.install_tasks(name: 'onyxcord-webhooks')
-end
-
-task build: %i[main:build webhooks:build]
-task release: %i[main:release webhooks:release]
+task build: :'main:build'
+task release: :'main:release'
 
 # Make "build" the default task
 task default: :build

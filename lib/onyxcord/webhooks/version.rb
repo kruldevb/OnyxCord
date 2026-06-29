@@ -1,9 +1,9 @@
 # frozen_string_literal: true
 
-# Webhook support for onyxcord
+# Webhook support bundled in onyxcord.
 module OnyxCord
   module Webhooks
-    # The current version of onyxcord-webhooks.
+    # Kept for compatibility with code that checks the webhooks module version.
     VERSION = '2.0.8'
   end
 end
