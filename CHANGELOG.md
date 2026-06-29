@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.0.13 - 2026-06-28
+
+### Correcoes de gateway
+
+- Evita chamadas REST em `Bot#update_voice_state` ao processar `VOICE_STATE_UPDATE`.
+- Torna `GUILD_UPDATE` tolerante a guild ainda nao cacheada.
+
 ## 2.0.12 - 2026-06-28
 
 ### Correcoes de gateway

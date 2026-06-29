@@ -1119,7 +1119,7 @@ module OnyxCord
       @session_id = data['session_id']
 
       server_id = data['guild_id'].to_i
-      server = server(server_id)
+      server = @servers&.[](server_id)
       return unless server
 
       user_id = data['user_id'].to_i
@@ -1132,7 +1132,8 @@ module OnyxCord
       if user_id == @profile.id && existing_voice
         new_channel_id = data['channel_id']
         if new_channel_id
-          new_channel = channel(new_channel_id)
+          channel_id = new_channel_id.to_i
+          new_channel = @channels&.[](channel_id) || server.channels.find { |channel| channel.id == channel_id }
           existing_voice.channel = new_channel
         else
           voice_destroy(server_id)
@@ -1248,7 +1249,15 @@ module OnyxCord
 
     # Internal handler for GUILD_UPDATE
     def update_guild(data)
-      @servers[data['id'].to_i].update_data(data)
+      server_id = data['id'].to_i
+      server = @servers&.[](server_id)
+
+      if server
+        server.update_data(data)
+      else
+        LOGGER.warn("GUILD_UPDATE received for uncached server #{server_id}; caching from payload")
+        ensure_server(data, true)
+      end
     end
 
     # Internal handler for GUILD_DELETE
