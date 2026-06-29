@@ -84,6 +84,7 @@ module OnyxCord
       @connection = nil
       @closed = true
       @pipe_broken = false
+      @missed_heartbeat_acks = 0
     end
 
     # Connect to the gateway server inside an Async reactor.
@@ -142,10 +143,17 @@ module OnyxCord
     def heartbeat
       if check_heartbeat_acks
         unless @last_heartbeat_acked
-          LOGGER.warn('Last heartbeat was not acked — zombie connection! Reconnecting')
-          @pipe_broken = true
-          reconnect
-          return
+          @missed_heartbeat_acks += 1
+          if @missed_heartbeat_acks >= 2
+            LOGGER.warn('Last heartbeats were not acked — zombie connection! Reconnecting')
+            @pipe_broken = true
+            reconnect
+            return
+          end
+
+          LOGGER.warn('Last heartbeat was not acked — waiting one more interval before reconnecting')
+        else
+          @missed_heartbeat_acks = 0
         end
         @last_heartbeat_acked = false
       end
@@ -219,6 +227,7 @@ module OnyxCord
 
     def setup_heartbeats(interval)
       @last_heartbeat_acked = true
+      @missed_heartbeat_acks = 0
       return if @heartbeat_task
 
       @heartbeat_interval = interval
@@ -432,7 +441,10 @@ module OnyxCord
     # Op 11
     def handle_heartbeat_ack(packet)
       LOGGER.debug("Heartbeat ACK: #{packet.inspect}")
-      @last_heartbeat_acked = true if @check_heartbeat_acks
+      if @check_heartbeat_acks
+        @last_heartbeat_acked = true
+        @missed_heartbeat_acks = 0
+      end
     end
 
     def handle_internal_close(e)

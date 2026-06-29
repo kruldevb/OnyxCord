@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.0.9 - 2026-06-28
+
+### Correcoes de estabilidade
+
+- Tolera um heartbeat sem ACK antes de reconectar, evitando queda por ACK atrasado isolado.
+
 ## 2.0.8 - 2026-06-28
 
 ### Correcoes de gateway
