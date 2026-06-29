@@ -57,7 +57,7 @@ module OnyxCord::Events
     def matches?(packet)
       return true unless @filter
 
-      type = packet['t']
+      type = packet['t'] || packet[:t]
       return false unless type
 
       if @filter.is_a?(Regexp)

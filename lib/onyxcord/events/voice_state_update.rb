@@ -11,6 +11,12 @@ module OnyxCord::Events
     # @return [Channel, nil] the old channel this user was on, or nil if the user is newly joining voice.
     attr_reader :old_channel
 
+    # @return [Integer, nil] the current voice channel ID, or nil if the user left voice.
+    attr_reader :channel_id
+
+    # @return [Integer, nil] the previous voice channel ID, or nil if the user joined voice.
+    attr_reader :old_channel_id
+
     # @!visibility private
     def initialize(data, old_channel_id, bot)
       @bot = bot
@@ -22,6 +28,8 @@ module OnyxCord::Events
       @self_deaf = data['self_deaf']
       @mute = data['mute']
       @deaf = data['deaf']
+      @channel_id = data['channel_id']&.to_i
+      @old_channel_id = old_channel_id&.to_i
       @server = bot.server(data['guild_id'].to_i)
       return unless @server
 

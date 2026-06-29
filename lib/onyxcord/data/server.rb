@@ -697,13 +697,15 @@ module OnyxCord
         end
 
         # Update the existing voice state (or the one we just created)
-        channel = @channels_by_id[data['channel_id'].to_i]
+        channel_id = data['channel_id'].to_i
+        channel = @channels_by_id[channel_id]
         @voice_states[user_id].update(
           channel,
           data['mute'],
           data['deaf'],
           data['self_mute'],
-          data['self_deaf']
+          data['self_deaf'],
+          channel_id
         )
       else
         # The user is not in a voice channel anymore, so delete its voice state

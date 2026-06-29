@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.0.10 - 2026-06-28
+
+### Correcoes de voz
+
+- Mantem `channel_id` no cache de `VoiceState` mesmo quando o objeto do canal ainda nao foi resolvido.
+- Expoe `channel_id` e `old_channel_id` em `VoiceStateUpdateEvent`, corrigindo entradas em call que pareciam `nil -> nil`.
+- Permite que raw dispatch handlers filtrem pacotes com chaves string ou symbol.
+
 ## 2.0.9 - 2026-06-28
 
 ### Correcoes de estabilidade
