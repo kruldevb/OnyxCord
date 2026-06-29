@@ -6,7 +6,7 @@ require 'onyxcord/data'
 module OnyxCord::Events
   # Event raised when a user's voice state updates
   class VoiceStateUpdateEvent < Event
-    attr_reader :user, :token, :suppress, :session_id, :self_mute, :self_deaf, :mute, :deaf, :server, :channel
+    attr_reader :user, :user_id, :token, :suppress, :session_id, :self_mute, :self_deaf, :mute, :deaf, :server, :channel
 
     # @return [Channel, nil] the old channel this user was on, or nil if the user is newly joining voice.
     attr_reader :old_channel
@@ -28,14 +28,35 @@ module OnyxCord::Events
       @self_deaf = data['self_deaf']
       @mute = data['mute']
       @deaf = data['deaf']
+      @user_id = data['user_id']&.to_i
       @channel_id = data['channel_id']&.to_i
       @old_channel_id = old_channel_id&.to_i
-      @server = bot.server(data['guild_id'].to_i)
+      @server = cached_server(bot, data['guild_id'])
       return unless @server
 
-      @channel = bot.channel(data['channel_id'].to_i) if data['channel_id']
-      @old_channel = bot.channel(old_channel_id) if old_channel_id
-      @user = bot.user(data['user_id'].to_i)
+      @channel = cached_channel(bot, @channel_id, @server)
+      @old_channel = cached_channel(bot, @old_channel_id, @server)
+      @user = cached_user(bot, data)
+    end
+
+    def cached_server(bot, server_id)
+      servers = bot.instance_variable_get(:@servers)
+      servers&.[](server_id.to_i)
+    end
+
+    def cached_channel(bot, channel_id, server)
+      return nil unless channel_id
+
+      channels = bot.instance_variable_get(:@channels)
+      channels&.[](channel_id.to_i) || server.channels.find { |channel| channel.id == channel_id.to_i }
+    end
+
+    def cached_user(bot, data)
+      user_data = data.dig('member', 'user') || data['user']
+      return bot.ensure_user(user_data) if user_data
+
+      users = bot.instance_variable_get(:@users)
+      users&.[](data['user_id'].to_i)
     end
   end
 
@@ -47,6 +68,8 @@ module OnyxCord::Events
 
       [
         matches_all(@attributes[:from], event.user) do |a, e|
+          next unless e
+
           a == case a
                when String
                  e.name

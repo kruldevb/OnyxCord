@@ -13,7 +13,7 @@ describe 'voice state updates' do
   end
 
   it 'exposes raw old and current channel ids on the event' do
-    server = instance_double(OnyxCord::Server)
+    server = instance_double(OnyxCord::Server, channels: [])
     bot = instance_double(OnyxCord::Bot)
     data = {
       'guild_id' => '100',
@@ -22,15 +22,18 @@ describe 'voice state updates' do
       'session_id' => 'voice-session'
     }
 
-    allow(bot).to receive(:server).with(100).and_return(server)
-    allow(bot).to receive(:channel).with(300).and_return(nil)
-    allow(bot).to receive(:channel).with(250).and_return(nil)
-    allow(bot).to receive(:user).with(200).and_return(nil)
+    bot.instance_variable_set(:@servers, 100 => server)
+    bot.instance_variable_set(:@channels, {})
+    bot.instance_variable_set(:@users, {})
+    expect(bot).not_to receive(:server)
+    expect(bot).not_to receive(:channel)
+    expect(bot).not_to receive(:user)
 
     event = OnyxCord::Events::VoiceStateUpdateEvent.new(data, 250, bot)
 
     expect(event.channel_id).to eq(300)
     expect(event.old_channel_id).to eq(250)
+    expect(event.user_id).to eq(200)
   end
 
   it 'matches raw dispatch packets with symbol keys' do

@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.0.12 - 2026-06-28
+
+### Correcoes de gateway
+
+- Evita chamadas REST durante a criação de eventos do Gateway para `VOICE_STATE_UPDATE` e `CHANNEL_CREATE`.
+- Trata `Async::Cancel` durante dispatch do Gateway como cancelamento esperado, sem registrar erro fatal.
+
 ## 2.0.11 - 2026-06-28
 
 ### Correcoes de estabilidade

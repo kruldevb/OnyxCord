@@ -1868,6 +1868,11 @@ module OnyxCord
         raise_event(event)
       end
     rescue Exception => e
+      if defined?(Async::Cancel) && e.is_a?(Async::Cancel)
+        LOGGER.debug('Gateway message handling was cancelled.')
+        return
+      end
+
       LOGGER.error('Gateway message error!')
       log_exception(e)
     end

@@ -32,7 +32,23 @@ module OnyxCord::Events
     # @!visibility private
     def initialize(data, bot)
       @bot = bot
-      @channel = data.is_a?(OnyxCord::Channel) ? data : bot.channel(data['id'].to_i)
+      @channel = if data.is_a?(OnyxCord::Channel)
+                   data
+                 else
+                   cached_channel(bot, data['id']) || OnyxCord::Channel.new(data, bot, cached_server(bot, data['guild_id']))
+                 end
+    end
+
+    def cached_channel(bot, channel_id)
+      channels = bot.instance_variable_get(:@channels)
+      channels&.[](channel_id.to_i)
+    end
+
+    def cached_server(bot, server_id)
+      return nil unless server_id
+
+      servers = bot.instance_variable_get(:@servers)
+      servers&.[](server_id.to_i)
     end
   end
 
