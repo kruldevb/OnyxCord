@@ -299,6 +299,10 @@ module OnyxCord
       Interactions::Message.new(JSON.parse(resp), @bot, self)
     end
 
+    alias edit_original edit_response
+    alias delete_original delete_response
+    alias followup send_message
+
     # @param message [String, Integer, InteractionMessage, Message] The message created by this interaction to be edited.
     # @param content [String] The message content.
     # @param embeds [Array<Hash, Webhooks::Embed>] The embeds for the message.

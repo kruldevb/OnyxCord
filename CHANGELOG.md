@@ -1,5 +1,60 @@
 # Changelog
 
+## 2.0.6 - 2026-06-28
+
+### Correcoes de empacotamento
+
+- Incluidos na gem os arquivos da infraestrutura async que ficaram fora do pacote `2.0.5`: `onyxcord/async/runtime` e `onyxcord/rate_limiter/async_rest`.
+- Incluidos na gem os arquivos da DSL moderna de application commands: `onyxcord/application_commands` e seus componentes internos.
+- Corrige `LoadError: cannot load such file -- onyxcord/async/runtime` ao usar a gem publicada.
+
+## 2.0.5 - 2026-06-28
+
+### Async Runtime (Infraestrutura nao-bloqueante)
+
+- **`OnyxCord::AsyncRuntime`**: modulo central que gerencia o reactor `async` com `run`, `async` e `sleep`, reaproveitando reactor existente quando disponivel.
+- **`EventExecutor::AsyncPool`**: novo pool de workers baseado em `Async::Queue` e fibers, sem threads.
+- **Gateway**: `run_async` nao cria mais `Thread.new` — usa `@task = AsyncRuntime.async { run }`. Todos os `sleep` trocados por `AsyncRuntime.sleep`.
+- **WebSocket**: usa `AsyncRuntime.async` em vez de `Async do` solto na classe.
+- **API REST**: `request` agora delega para `request_async` automaticamente quando dentro de um reactor. `request_async` usa rate limiter async, `AsyncRuntime.sleep`, e retry com limite em 502.
+- **Rate Limiter Async**: novo `OnyxCord::RateLimiter::AsyncRest` que evita `mutex.synchronize { sleep }` bloqueante.
+- **Bot**: `run`/`stop`/`join` refatorados para o runtime async. `send_temporary_message` e `voice_connect` usam sleeps async.
+- Compatibilidade sync mantida: a API publica continua funcionando de forma sincrona quando chamada fora de um reactor.
+
+### Modern Application Commands DSL
+
+- **`bot.slash`, `bot.user_command`, `bot.message_command`**: nova DSL para comandos modernos com definicao e handler unificados.
+- **`bot.sync_application_commands!`**: sincroniza todos os commands registrados com a API do Discord de uma vez.
+- **`bot.bulk_overwrite_global_application_commands`** e **`bot.bulk_overwrite_guild_application_commands`**: wrappers para bulk overwrite.
+- **`ApplicationCommands::Context`**: wrapper com `respond`, `defer`, `edit_original`, `delete_original`, `followup` e acesso a `options`, `guild`, `channel`, `user`.
+- **`Interaction#edit_original`**, **`Interaction#delete_original`**, **`Interaction#followup`**: novos aliases dos metodos originais.
+- API legacy (`register_application_command` + `application_command`) mantida com compatibilidade total.
+
+### Exemplo da nova DSL
+
+```ruby
+bot.slash :ban, description: "Bane um membro", default_member_permissions: [:ban_members] do
+  user :member, "Membro que sera banido", required: true
+  string :reason, "Motivo do banimento", max_length: 512
+
+  execute do |ctx|
+    ctx.defer(ephemeral: true)
+    member = ctx.options[:member]
+    reason = ctx.options[:reason] || "Sem motivo informado"
+    ctx.guild.ban(member, reason: reason)
+    ctx.edit_original(content: "Membro banido com sucesso.")
+  end
+end
+
+bot.sync_application_commands!(server_id: ENV.fetch('DISCORD_SERVER_ID'))
+```
+
+### Validacao
+
+- `bundle exec rspec`: 460 exemplos, 0 falhas, 3 pendentes.
+- `ruby -c lib/onyxcord/**/*.rb`: todos os arquivos com sintaxe OK.
+- `gem build onyxcord.gemspec`: sucesso.
+
 ## 2.0.0 - 2026-06-28
 
 ### Arquitetura & Performance (Major Refactoring)

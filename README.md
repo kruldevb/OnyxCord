@@ -22,6 +22,8 @@ Simple to start, deep enough to control.
 - Friendly Ruby API for Discord bots.
 - Traditional object events for productivity.
 - Raw gateway events for performance and lower allocation.
+- **Modern async runtime** built on `async` gem with non-blocking gateway, REST and event dispatch.
+- **New modern slash command DSL** with `bot.slash`, `execute`, and `bot.sync_application_commands!`.
 - Components V2 support with `Text Display`, `Container`, `Section`, `Media Gallery`, `File`, `Separator`, and `Thumbnail`.
 - Modern modal components, including `Label`, `Text Display`, modal selects, file upload, radio group, checkbox group, and checkbox.
 - Webhooks with embeds, files, and components.
@@ -112,6 +114,25 @@ bot.application_command(:feedback) do |event|
 end
 ```
 
+### Modern Command DSL
+
+```ruby
+bot.slash :ban, description: 'Ban a member', default_member_permissions: [:ban_members] do
+  user :member, 'Member to ban', required: true
+  string :reason, 'Ban reason', max_length: 512
+
+  execute do |ctx|
+    ctx.defer(ephemeral: true)
+    member = ctx.options[:member]
+    reason = ctx.options[:reason] || 'No reason provided'
+    ctx.guild.ban(member, reason: reason)
+    ctx.edit_original(content: 'Member banned.')
+  end
+end
+
+bot.sync_application_commands!(server_id: ENV.fetch('DISCORD_SERVER_ID'))
+```
+
 ### Community
 
 Join the Discord server for support, updates, examples, and feedback: https://discord.gg/Jy2tpCUtzM
@@ -131,6 +152,8 @@ Simples para comecar, profundo para controlar.
 - API Ruby amigavel para bots do Discord.
 - Eventos tradicionais com objetos para quem quer produtividade.
 - Eventos raw para quem quer performance e menos alocacao.
+- **Runtime async moderno** baseado na gem `async`: gateway, REST e dispatch de eventos nao-bloqueantes.
+- **Nova DSL moderna de slash commands** com `bot.slash`, `execute` e `bot.sync_application_commands!`.
 - Components V2 com `Text Display`, `Container`, `Section`, `Media Gallery`, `File`, `Separator` e `Thumbnail`.
 - Novos componentes de modal, incluindo `Label`, `Text Display`, selects em modal, upload, radio group, checkbox group e checkbox.
 - Webhooks com embeds, arquivos e componentes.
@@ -221,6 +244,25 @@ bot.application_command(:feedback) do |event|
 end
 ```
 
+### DSL Moderna de Comandos
+
+```ruby
+bot.slash :ban, description: 'Bane um membro', default_member_permissions: [:ban_members] do
+  user :member, 'Membro que sera banido', required: true
+  string :reason, 'Motivo do banimento', max_length: 512
+
+  execute do |ctx|
+    ctx.defer(ephemeral: true)
+    member = ctx.options[:member]
+    reason = ctx.options[:reason] || 'Sem motivo informado'
+    ctx.guild.ban(member, reason: reason)
+    ctx.edit_original(content: 'Membro banido com sucesso.')
+  end
+end
+
+bot.sync_application_commands!(server_id: ENV.fetch('DISCORD_SERVER_ID'))
+```
+
 ### Comunidade
 
 Entre no servidor do Discord para suporte, atualizacoes, exemplos e feedback: https://discord.gg/Jy2tpCUtzM
@@ -237,9 +279,11 @@ Simple para empezar, profundo para controlar.
 
 ### Caracteristicas
 
-- API Ruby amigable para bots de Discord.
+- API Ruby amigavel para bots de Discord.
 - Eventos tradicionales con objetos para productividad.
 - Eventos raw para rendimiento y menos asignaciones.
+- **Runtime async moderno** basado en la gem `async`: gateway, REST y dispatch de eventos no bloqueantes.
+- **Nueva DSL moderna de slash commands** con `bot.slash`, `execute` y `bot.sync_application_commands!`.
 - Components V2 con `Text Display`, `Container`, `Section`, `Media Gallery`, `File`, `Separator` y `Thumbnail`.
 - Componentes modernos de modal, incluyendo `Label`, `Text Display`, selects en modal, subida de archivos, radio group, checkbox group y checkbox.
 - Webhooks con embeds, archivos y componentes.
@@ -328,6 +372,25 @@ bot.application_command(:feedback) do |event|
     end
   end
 end
+```
+
+### DSL Moderna de Comandos
+
+```ruby
+bot.slash :ban, description: 'Banear a un miembro', default_member_permissions: [:ban_members] do
+  user :member, 'Miembro a banear', required: true
+  string :reason, 'Motivo del baneo', max_length: 512
+
+  execute do |ctx|
+    ctx.defer(ephemeral: true)
+    member = ctx.options[:member]
+    reason = ctx.options[:reason] || 'Sin motivo'
+    ctx.guild.ban(member, reason: reason)
+    ctx.edit_original(content: 'Miembro baneado.')
+  end
+end
+
+bot.sync_application_commands!(server_id: ENV.fetch('DISCORD_SERVER_ID'))
 ```
 
 ### Comunidad

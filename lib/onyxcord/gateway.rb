@@ -3,6 +3,7 @@
 require 'async'
 require 'async/http/endpoint'
 require 'async/websocket/client'
+require 'onyxcord/async/runtime'
 require 'onyxcord/rate_limiter/gateway'
 
 module OnyxCord
@@ -86,25 +87,24 @@ module OnyxCord
 
     # Connect to the gateway server inside an Async reactor.
     def run_async
-      @ws_thread = Thread.new do
-        Thread.current[:onyxcord_name] = 'gateway'
-        Async do |task|
-          @reactor_task = task
-          connect_loop
-          LOGGER.warn('The gateway loop exited!')
-        end
-      end
+      @task = OnyxCord::AsyncRuntime.async { run }
 
-      LOGGER.debug('Gateway thread created! Waiting for confirmation...')
+      LOGGER.debug('Gateway task created! Waiting for confirmation...')
       loop do
-        sleep(0.5)
+        OnyxCord::AsyncRuntime.sleep(0.5)
         break if @ws_success
         break if @should_reconnect == false
       end
     end
 
+    def run
+      @reactor_task = Async::Task.current
+      connect_loop
+      LOGGER.warn('The gateway loop exited!')
+    end
+
     def sync
-      @ws_thread&.join
+      @task&.wait
     end
 
     def open?
@@ -118,7 +118,7 @@ module OnyxCord
     end
 
     def kill
-      @ws_thread&.kill
+      @task&.stop
     end
 
     def notify_ready
@@ -224,7 +224,7 @@ module OnyxCord
       @heartbeat_task = @reactor_task&.async do
         loop do
           if (@session && !@session.suspended?) || !@session
-            sleep @heartbeat_interval
+            OnyxCord::AsyncRuntime.sleep(@heartbeat_interval)
             if !@closed && @connection
               @bot.raise_heartbeat_event
               heartbeat
@@ -232,7 +232,7 @@ module OnyxCord
               LOGGER.debug('Tried to heartbeat without connection — skipping.')
             end
           else
-            sleep 1
+            OnyxCord::AsyncRuntime.sleep(1)
           end
         rescue StandardError => e
           LOGGER.error('Error while heartbeating!')
@@ -260,7 +260,7 @@ module OnyxCord
 
     def wait_for_reconnect
       LOGGER.debug("Reconnecting in #{@falloff} seconds.")
-      sleep @falloff
+      OnyxCord::AsyncRuntime.sleep(@falloff)
       @falloff *= 1.5
       @falloff = 115 + (rand * 10) if @falloff > 120
     end

@@ -139,3 +139,23 @@ bot.autocomplete(:method) do |event|
 end
 
 bot.run
+
+# === Modern Command DSL Example ===
+# Uncomment to try the new modern command syntax:
+#
+# bot.slash :ban, description: "Bane um membro", default_member_permissions: [:ban_members] do
+#   user :member, "Membro que sera banido", required: true
+#   string :reason, "Motivo do banimento", max_length: 512
+#
+#   execute do |ctx|
+#     ctx.defer(ephemeral: true)
+#
+#     member = ctx.options[:member]
+#     reason = ctx.options[:reason] || "Sem motivo informado"
+#
+#     ctx.guild.ban(member, reason: reason)
+#     ctx.edit_original(content: "Membro banido com sucesso.")
+#   end
+# end
+#
+# bot.sync_application_commands!(server_id: ENV.fetch('SLASH_COMMAND_BOT_SERVER_ID', nil))

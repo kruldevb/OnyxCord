@@ -2,10 +2,12 @@
 
 require 'onyxcord/http'
 require 'onyxcord/json'
+require 'onyxcord/async/runtime'
 require 'time'
 
 require 'onyxcord/errors'
 require 'onyxcord/rate_limiter/rest'
+require 'onyxcord/rate_limiter/async_rest'
 
 # List of methods representing endpoints in Discord's API
 module OnyxCord::API
@@ -61,14 +63,23 @@ module OnyxCord::API
   # Resets all rate limit mutexes
   def reset_mutexes
     @rate_limiter = OnyxCord::RateLimiter::Rest.new
+    @async_rate_limiter = OnyxCord::RateLimiter::AsyncRest.new
   end
 
   def rate_limiter
     @rate_limiter ||= OnyxCord::RateLimiter::Rest.new
   end
 
+  def async_rate_limiter
+    @async_rate_limiter ||= OnyxCord::RateLimiter::AsyncRest.new
+  end
+
   def rate_limiter_stats
     rate_limiter.stats
+  end
+
+  def async_rate_limiter_stats
+    async_rate_limiter.stats
   end
 
   # Wait a specified amount of time synchronised with the specified mutex.
@@ -110,11 +121,18 @@ module OnyxCord::API
 
   # Make an API request, including rate limit handling.
   def request(key, major_parameter, type, *attributes)
-    # Parse attributes: URL is first, body is second (if present), rest is headers hash
+    if Async::Task.current?
+      request_async(key, major_parameter, type, *attributes)
+    else
+      OnyxCord::AsyncRuntime.run { request_async(key, major_parameter, type, *attributes) }
+    end
+  end
+
+  # Async version of request.
+  def request_async(key, major_parameter, type, *attributes)
     url = attributes.shift
     headers_or_body = attributes
 
-    # Separate body and headers from the positional args
     body = nil
     headers = {}
 
@@ -126,89 +144,74 @@ module OnyxCord::API
       end
     end
 
-    # Extract content_type from headers for HTTPX
     content_type = headers.delete(:content_type)
     headers['content-type'] = 'application/json' if content_type == :json
 
-    # Add user agent
     headers['user-agent'] = user_agent
 
+    retries = 0
+    max_retries = key == :gateway ? 0 : 3
+
     begin
-      rate_limiter.before_request(key, major_parameter)
+      async_rate_limiter.before_request(key, major_parameter)
 
       response = nil
-      begin
+      loop do
         response = OnyxCord::HTTP.request(type, url, body, **headers)
+        break unless response.code == 502
 
-        if response.code == 403
-          noprm = OnyxCord::Errors::NoPermission.new
-          noprm.define_singleton_method(:_response) { response }
-          raise noprm, "The bot doesn't have the required permission to do this!"
-        end
+        retries += 1
+        break unless retries < max_retries
 
-        # Retry on 502
-        if response.code == 502
-          OnyxCord::LOGGER.warn('Got a 502 while sending a request! Not a big deal, retrying the request')
-          return request(key, major_parameter, type, url, body, headers)
-        end
-
-        # Handle error status codes
-        if response.code >= 400 && response.code != 429
-          data = begin
-            JSON.parse(response.body)
-          rescue StandardError
-            nil
-          end
-
-          raise "HTTP #{response.code}: #{response.body}" unless data
-
-          err_klass = OnyxCord::Errors.error_class_for(data['code'] || 0)
-          e = err_klass.new(data['message'], data['errors'])
-          OnyxCord::LOGGER.error(e.full_message)
-          raise e
-        end
-      rescue OnyxCord::Errors::NoPermission => e
-        if e.respond_to?(:_response)
-          response = e._response
-        else
-          OnyxCord::LOGGER.warn("NoPermission doesn't respond_to? _response!")
-        end
-
-        raise e
-      ensure
-        if response
-          rate_limiter.record_response(key, major_parameter, response.headers)
-        else
-          OnyxCord::LOGGER.ratelimit('Response was nil before trying to preemptively rate limit!')
-        end
+        OnyxCord::LOGGER.warn('Got a 502 while sending a request! Not a big deal, retrying the request')
+        OnyxCord::AsyncRuntime.sleep(retries * 0.5)
       end
-    rescue OnyxCord::Errors::CodeError => e
-      raise if e.respond_to?(:code) && e.code != 429_000
 
-      raise
+      if response.code == 403
+        noprm = OnyxCord::Errors::NoPermission.new
+        noprm.define_singleton_method(:_response) { response }
+        raise noprm, "The bot doesn't have the required permission to do this!"
+      end
+
+      if response.code >= 400 && response.code != 429
+        data = begin
+          JSON.parse(response.body)
+        rescue StandardError
+          nil
+        end
+
+        raise "HTTP #{response.code}: #{response.body}" unless data
+
+        err_klass = OnyxCord::Errors.error_class_for(data['code'] || 0)
+        e = err_klass.new(data['message'], data['errors'])
+        OnyxCord::LOGGER.error(e.full_message)
+        raise e
+      end
+    rescue OnyxCord::Errors::NoPermission => e
+      async_rate_limiter.record_response(key, major_parameter, e._response.headers) if e.respond_to?(:_response)
+      raise e
+    else
+      async_rate_limiter.record_response(key, major_parameter, response.headers)
     end
 
-    # Handle 429 rate limiting
-    if response&.code == 429
+    if response.code == 429
       trace("429 #{key} #{major_parameter}")
-      rate_limiter.handle_rate_limit(key, major_parameter, response)
-      return request(key, major_parameter, type, url, body, headers)
+      async_rate_limiter.handle_rate_limit(key, major_parameter, response)
+      return request_async(key, major_parameter, type, url, body, headers)
     end
 
-    # Endpoints that use Elasticsearch can return a 202 when the index isn't ready yet. Wait the
-    # amount of time indicated by the response body, and then recursively retry and return the request.
-    if response&.code == 202 && response&.body
+    if response.code == 202 && response.body
       body_data = JSON.parse(response.body)
 
       if body_data['code'] == 110_000
         case body_data['retry_after']
         when 0, 1, nil
-          sleep(rand(4.5..5.0))
+          OnyxCord::AsyncRuntime.sleep(rand(4.5..5.0))
         else
-          sleep(body_data['retry_after'])
+          OnyxCord::AsyncRuntime.sleep(body_data['retry_after'])
         end
 
-        return request(key, major_parameter, type, url, body, headers)
+        return request_async(key, major_parameter, type, url, body, headers)
       end
     end
 

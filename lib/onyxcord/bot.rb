@@ -33,6 +33,7 @@ require 'onyxcord/api/invite'
 require 'onyxcord/api/interaction'
 require 'onyxcord/api/application'
 
+require 'onyxcord/async/runtime'
 require 'onyxcord/errors'
 require 'onyxcord/message_components'
 require 'onyxcord/data'
@@ -42,6 +43,7 @@ require 'onyxcord/websocket'
 require 'onyxcord/cache'
 require 'onyxcord/gateway'
 
+require 'onyxcord/application_commands'
 require 'onyxcord/voice/voice_bot'
 
 module OnyxCord
@@ -309,28 +311,27 @@ module OnyxCord
     #   this. If you need a way to safely run code after the bot is fully
     #   connected, use a {#ready} event handler instead.
     def run(background = false)
-      @gateway.run_async
-      return if background
+      if background
+        @run_task = OnyxCord::AsyncRuntime.async { run_forever }
+        return @run_task
+      end
 
-      debug('Oh wait! Not exiting yet as run was run synchronously.')
-      @gateway.sync
+      OnyxCord::AsyncRuntime.run { run_forever }
     end
 
-    # Joins the bot's connection thread with the current thread.
-    # This blocks execution until the websocket stops, which should only happen
-    # manually triggered. or due to an error. This is necessary to have a
-    # continuously running bot.
+    def run_forever
+      @gateway.run
+    end
+
     def join
-      @gateway.sync
+      @run_task&.wait
     end
     alias_method :sync, :join
 
-    # Stops the bot gracefully, disconnecting the websocket without immediately killing the thread. This means that
-    # Discord is immediately aware of the closed connection and makes the bot appear offline instantly.
-    # @note This method no longer takes an argument as of 3.4.0
     def stop(_no_sync = nil)
       @gateway.stop
       @event_executor.shutdown
+      @run_task&.stop if @run_task.respond_to?(:stop)
       nil
     end
 
@@ -411,7 +412,7 @@ module OnyxCord
 
       debug('Voice channel init packet sent! Now waiting.')
 
-      sleep(0.05) until @voices[server_id]
+      OnyxCord::AsyncRuntime.sleep(0.05) until @voices[server_id]
       debug('Voice connect succeeded!')
       @voices[server_id]
     end
@@ -477,9 +478,9 @@ module OnyxCord
     # @param enforce_nonce [true, false] Whether the nonce should be enforced and used for message de-duplication.
     # @param poll [Hash, Poll::Builder, Poll, nil] The poll that should be attached to this message.
     def send_temporary_message(channel, content, timeout, tts = false, embeds = nil, attachments = nil, allowed_mentions = nil, message_reference = nil, components = nil, flags = 0, nonce = nil, enforce_nonce = false, poll = nil)
-      Async do
+      OnyxCord::AsyncRuntime.async do
         message = send_message(channel, content, tts, embeds, attachments, allowed_mentions, message_reference, components, flags, nonce, enforce_nonce, poll)
-        sleep(timeout)
+        OnyxCord::AsyncRuntime.sleep(timeout)
         message.delete
       end
 
@@ -862,6 +863,37 @@ module OnyxCord
                API::Application.get_global_command(@token, profile.id, command_id)
              end
       ApplicationCommand.new(JSON.parse(resp), self, server_id)
+    end
+
+    # @return [OnyxCord::ApplicationCommands::Registry]
+    def commands
+      @modern_command_registry ||= OnyxCord::ApplicationCommands::Registry.new(self)
+    end
+
+    def slash(name, description: nil, **attributes, &block)
+      commands.slash(name, description: description, **attributes, &block)
+    end
+
+    def user_command(name, **attributes, &block)
+      commands.user(name, **attributes, &block)
+    end
+
+    def message_command(name, **attributes, &block)
+      commands.message(name, **attributes, &block)
+    end
+
+    def sync_application_commands!(server_id: nil, delete_unknown: false)
+      commands.sync!(server_id: server_id, delete_unknown: delete_unknown)
+    end
+
+    def bulk_overwrite_global_application_commands(commands)
+      response = API::Application.bulk_overwrite_global_commands(@token, profile.id, commands)
+      JSON.parse(response).map { |data| ApplicationCommand.new(data, self) }
+    end
+
+    def bulk_overwrite_guild_application_commands(server_id, commands)
+      response = API::Application.bulk_overwrite_guild_commands(@token, profile.id, server_id.resolve_id, commands)
+      JSON.parse(response).map { |data| ApplicationCommand.new(data, self, server_id) }
     end
 
     # @yieldparam [OptionBuilder]
