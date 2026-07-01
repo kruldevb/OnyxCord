@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require 'onyxcord/message_components'
+require 'onyxcord/message_payload'
 
 # API calls for Webhook object
 module OnyxCord::API::Webhook
@@ -9,18 +9,12 @@ module OnyxCord::API::Webhook
   # Build attachment metadata payload for multipart uploads.
   # Returns an array of { id:, filename: } hashes.
   def attachment_payload(attachments)
-    Array(attachments).map.with_index do |attachment, index|
-      { id: index, filename: File.basename(attachment.path) }
-    end
+    OnyxCord::MessagePayload.attachment_payload(attachments)
   end
 
   # Build multipart body with named file fields and JSON payload.
   def multipart_body(body, attachments)
-    files = Array(attachments).map.with_index.to_h do |attachment, index|
-      ["files[#{index}]", attachment]
-    end
-
-    { **files, payload_json: body.to_json }
+    OnyxCord::MessagePayload.multipart_body(body, attachments)
   end
 
   # Get a webhook
@@ -49,9 +43,12 @@ module OnyxCord::API::Webhook
   # Execute a webhook via token.
   # https://discord.com/developers/docs/resources/webhook#execute-webhook
   def token_execute_webhook(webhook_token, webhook_id, wait = false, content = nil, username = nil, avatar_url = nil, tts = nil, file = nil, embeds = nil, allowed_mentions = nil, flags = nil, components = nil, attachments = nil, poll = nil)
+    raise ArgumentError, 'cannot mix file and attachments' if file && attachments
+
     components = OnyxCord::MessageComponents.payload(components) unless components.nil?
     flags = OnyxCord::MessageComponents.apply_v2_flag(flags, components)
-    body = { content: content, username: username, avatar_url: avatar_url, tts: tts, embeds: embeds&.map(&:to_hash), allowed_mentions: allowed_mentions, flags: flags, components: components, attachments: attachments ? attachment_payload(attachments) : nil, poll: poll }.compact
+    OnyxCord::MessagePayload.validate!(content: content, embeds: embeds, components: components, flags: flags, attachments: attachments, poll: poll)
+    body = { content: content, username: username, avatar_url: avatar_url, tts: tts == true ? true : nil, embeds: embeds&.map(&:to_hash), allowed_mentions: allowed_mentions, flags: flags, components: components&.any? ? components : nil, attachments: attachments ? attachment_payload(attachments) : nil, poll: poll }.compact
 
     body = if file
              { file: file, payload_json: body.to_json }
@@ -145,7 +142,8 @@ module OnyxCord::API::Webhook
   def token_edit_message(webhook_token, webhook_id, message_id, content = nil, embeds = nil, allowed_mentions = nil, components = nil, attachments = nil, flags = nil, poll = nil)
     components = OnyxCord::MessageComponents.payload(components) unless components.nil?
     flags = OnyxCord::MessageComponents.apply_v2_flag(flags, components)
-    body = { content: content, embeds: embeds, allowed_mentions: allowed_mentions, components: components, attachments: attachments ? attachment_payload(attachments) : nil, flags: flags, poll: poll }.compact
+    OnyxCord::MessagePayload.validate!(content: content, embeds: embeds, components: components, flags: flags, attachments: attachments, poll: poll)
+    body = OnyxCord::MessagePayload.edit_body(content, embeds).merge({ allowed_mentions: allowed_mentions, components: components, attachments: attachments ? attachment_payload(attachments) : nil, flags: flags, poll: poll }.compact)
 
     body = if attachments
              multipart_body(body, attachments)

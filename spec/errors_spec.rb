@@ -40,4 +40,28 @@ describe OnyxCord::Errors do
       expect(instance.code).to eq(40_001)
     end
   end
+
+  describe OnyxCord::Errors::HTTPError do
+    it 'keeps HTTP diagnostics' do
+      error = described_class.new('bad', status: 400, code: 12, headers: { via: 'cf' }, route: 'POST /x', body: 'html')
+
+      expect(error.status).to eq(400)
+      expect(error.code).to eq(12)
+      expect(error.headers).to eq(via: 'cf')
+      expect(error.route).to eq('POST /x')
+      expect(error.body).to eq('html')
+    end
+  end
+
+  describe 'CodeError HTTP metadata' do
+    it 'keeps status, route, headers and body' do
+      error = OnyxCord::Errors::Unauthorized.new('nope', nil, status: 401, headers: { h: 'v' }, route: 'GET /me', body: '{"message":"nope"}')
+
+      expect(error.status).to eq(401)
+      expect(error.code).to eq(40_001)
+      expect(error.route).to eq('GET /me')
+      expect(error.headers).to eq(h: 'v')
+      expect(error.body).to eq('{"message":"nope"}')
+    end
+  end
 end

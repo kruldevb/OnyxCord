@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require 'onyxcord/message_components'
+require 'onyxcord/message_payload'
 
 module OnyxCord
   # A message on Discord that was sent to a text channel
@@ -304,7 +304,11 @@ module OnyxCord
     # @param flags [Integer] Flags for this message. Currently only SUPPRESS_EMBEDS (1 << 2) can be edited.
     # @return [Message] the resulting message.
     def edit(new_content, new_embeds = nil, new_components = nil, flags = 0)
-      new_embeds = (new_embeds.instance_of?(Array) ? new_embeds.map(&:to_hash) : [new_embeds&.to_hash]).compact
+      new_embeds = if new_embeds == OnyxCord::MessagePayload::KEEP
+                     new_embeds
+                   else
+                     (new_embeds.instance_of?(Array) ? new_embeds.map { |embed| embed.respond_to?(:to_hash) ? embed.to_hash : embed } : [new_embeds&.to_hash]).compact
+                   end
       new_components = new_components.to_a
       flags = OnyxCord::MessageComponents.apply_v2_flag(flags, new_components)
 

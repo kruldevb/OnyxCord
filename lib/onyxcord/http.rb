@@ -1,7 +1,11 @@
 # frozen_string_literal: true
 
 require 'httpx'
+require 'net/http'
 require 'onyxcord/json'
+require 'onyxcord/upload'
+require 'securerandom'
+require 'uri'
 
 module OnyxCord
   # Modern HTTP adapter wrapping HTTPX with persistent connections, automatic
@@ -22,8 +26,9 @@ module OnyxCord
       def initialize(httpx_response)
         @raw = httpx_response
         @body = httpx_response.body.to_s
-        @code = httpx_response.status
-        @headers = normalize_headers(httpx_response.headers)
+        @code = httpx_response.respond_to?(:status) ? httpx_response.status : httpx_response.code.to_i
+        response_headers = httpx_response.respond_to?(:headers) ? httpx_response.headers : httpx_response.to_hash
+        @headers = normalize_headers(response_headers)
       end
 
       def to_s
@@ -39,6 +44,8 @@ module OnyxCord
       def normalize_headers(headers)
         headers.to_h.transform_keys do |key|
           key.to_s.tr('-', '_').downcase.to_sym
+        end.transform_values do |value|
+          value.is_a?(Array) && value.size == 1 ? value.first : value
         end
       end
     end
@@ -49,6 +56,10 @@ module OnyxCord
     def session
       Thread.current[:onyxcord_http_session] ||= HTTPX.plugin(:persistent)
                                                  .plugin(:follow_redirects)
+                                                 .with(
+                                                   fallback_protocol: 'http/1.1',
+                                                   ssl: { alpn_protocols: ['http/1.1'] }
+                                                 )
     end
 
     # Reset the HTTP session (useful for tests).
@@ -69,9 +80,9 @@ module OnyxCord
             when :get
               http.get(url)
             when :post
-              if body.is_a?(Hash) && body.any? { |_, v| v.respond_to?(:read) || v.respond_to?(:path) }
+              if multipart?(body)
                 # Multipart upload
-                http.plugin(:multipart).post(url, form: body)
+                post_multipart(url, body, headers)
               else
                 http.post(url, body: body)
               end
@@ -89,6 +100,66 @@ module OnyxCord
       raise raw.error if raw.is_a?(HTTPX::ErrorResponse)
 
       Response.new(raw)
+    end
+
+    def post_multipart(url, body, headers)
+      uri = URI(url)
+      boundary = "----OnyxCord#{SecureRandom.hex(12)}"
+      request = Net::HTTP::Post.new(uri)
+      headers.each { |key, value| request[key.to_s] = value }
+      request['Content-Type'] = "multipart/form-data; boundary=#{boundary}"
+      request.body = multipart_body(body, boundary)
+
+      Net::HTTP.start(uri.hostname, uri.port, use_ssl: uri.scheme == 'https') do |http|
+        http.request(request)
+      end
+    end
+
+    def multipart_body(body, boundary)
+      output = String.new.b
+
+      multipart_parts(body).each do |part|
+        key = part[:name]
+        value = part[:value]
+        output << "--#{boundary}\r\n"
+        if part[:filename]
+          value.rewind if value.respond_to?(:rewind)
+          filename = part[:filename]
+          output << "Content-Disposition: form-data; name=\"#{key}\"; filename=\"#{filename}\"\r\n"
+          output << "Content-Type: #{part[:content_type] || multipart_content_type(filename)}\r\n\r\n"
+          output << value.read.to_s
+        else
+          output << "Content-Disposition: form-data; name=\"#{key}\"\r\n"
+          output << "\r\n"
+          output << value.to_s
+        end
+        output << "\r\n"
+      end
+
+      output << "--#{boundary}--\r\n"
+    end
+
+    def multipart_content_type(filename)
+      File.extname(filename).casecmp('.txt').zero? ? 'text/plain' : 'application/octet-stream'
+    end
+
+    def multipart?(body)
+      return true if body.is_a?(Array) && body.all? { |part| part.is_a?(Hash) && part[:name] && part.key?(:value) }
+
+      body.is_a?(Hash) && body.any? { |_, value| value.respond_to?(:read) || value.respond_to?(:path) }
+    end
+
+    def multipart_parts(body)
+      return body if body.is_a?(Array)
+
+      body.map do |key, value|
+        if value.respond_to?(:read) || value.respond_to?(:path)
+          upload = OnyxCord::Upload.wrap(value)
+          { name: key, value: upload, filename: upload.filename, content_type: upload.content_type }
+        else
+          { name: key, value: value }
+        end
+      end
     end
 
     # Convenience wrappers

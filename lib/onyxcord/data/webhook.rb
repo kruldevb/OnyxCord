@@ -2,7 +2,7 @@
 
 require 'onyxcord/webhooks/builder'
 require 'onyxcord/webhooks/view'
-require 'onyxcord/message_components'
+require 'onyxcord/message_payload'
 
 module OnyxCord
   # A webhook on a server channel
@@ -178,7 +178,7 @@ module OnyxCord
     def edit_message(message, content: nil, embeds: nil, allowed_mentions: nil, builder: nil, components: nil, flags: 0, has_components: false, components_v2: false)
       raise OnyxCord::Errors::UnauthorizedWebhook unless @token
 
-      params = { content: content, embeds: embeds, allowed_mentions: allowed_mentions }.compact
+      params = { allowed_mentions: allowed_mentions }.compact
 
       builder ||= Webhooks::Builder.new
       view ||= Webhooks::View.new
@@ -189,7 +189,9 @@ module OnyxCord
       components ||= view
       flags = OnyxCord::MessageComponents.apply_v2_flag(flags, components, force: has_components || components_v2)
 
-      resp = API::Webhook.token_edit_message(@token, @id, message.resolve_id, data[:content], data[:embeds], data[:allowed_mentions], components.to_a, nil, flags)
+      edit_content = content == OnyxCord::MessagePayload::KEEP || !content.nil? ? content : data[:content]
+      edit_embeds = embeds == OnyxCord::MessagePayload::KEEP || !embeds.nil? ? embeds : data[:embeds]
+      resp = API::Webhook.token_edit_message(@token, @id, message.resolve_id, edit_content, edit_embeds, data[:allowed_mentions], components.to_a, nil, flags)
       Message.new(JSON.parse(resp), @bot)
     end
 

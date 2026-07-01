@@ -14,8 +14,22 @@ module OnyxCord
     # Raised when a message is over the character limit
     class MessageTooLong < RuntimeError; end
 
+    class HTTPError < RuntimeError
+      attr_reader :status, :code, :headers, :route, :body, :response
+
+      def initialize(message = nil, status: nil, code: 0, headers: {}, route: nil, body: nil, response: nil)
+        super(message)
+        @status = status
+        @code = code || 0
+        @headers = headers
+        @route = route
+        @body = body
+        @response = response
+      end
+    end
+
     # Raised when the bot can't do something because its permissions on the server are insufficient
-    class NoPermission < RuntimeError; end
+    class NoPermission < HTTPError; end
 
     # Raised when the bot gets a HTTP 502 error, which is usually caused by Cloudflare.
     class CloudflareError < RuntimeError; end
@@ -24,7 +38,7 @@ module OnyxCord
     class UnauthorizedWebhook < RuntimeError; end
 
     # Generic class for errors denoted by API error codes
-    class CodeError < RuntimeError
+    class CodeError < HTTPError
       class << self
         # @return [Integer] The error code represented by this error class.
         attr_reader :code
@@ -33,10 +47,11 @@ module OnyxCord
       # Create a new error with a particular message (the code should be defined by the class instance variable)
       # @param message [String] the message to use
       # @param errors [Hash] API errors
-      def initialize(message, errors = nil)
+      def initialize(message, errors = nil, status: nil, headers: {}, route: nil, body: nil, response: nil)
         @message = message
 
         @errors = errors ? flatten_errors(errors) : []
+        super(full_message, status: status, code: code, headers: headers, route: route, body: body, response: response)
       end
 
       # @return [Integer] The error code represented by this error.

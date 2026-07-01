@@ -4,6 +4,6 @@
 module OnyxCord
   module Webhooks
     # Kept for compatibility with code that checks the webhooks module version.
-    VERSION = '2.0.13'
+    VERSION = '2.1.0'
   end
 end

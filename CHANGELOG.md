@@ -1,5 +1,60 @@
 # Changelog
 
+## 2.1.0 - 2026-07-01
+
+### Melhorias de REST e gateway
+
+- Adiciona `OnyxCord::MessagePayload` e `OnyxCord::Upload` para centralizar payloads, anexos e multipart.
+- Melhora rate limit global async para bloquear novas requests enquanto o limite global esta ativo.
+- Adiciona retry REST para falhas temporarias `500`, `502`, `503`, `504` e erros de conexao.
+- Adiciona erros HTTP tipados com `status`, `code`, `headers`, `route`, `body` e `response`.
+- Torna o reconnect do gateway mais defensivo: quedas antes do `HELLO` voltam para `IDENTIFY`, quedas depois do `HELLO` tentam `RESUME`.
+- Adiciona `AllowedMentions.none` e `AllowedMentions.all`.
+- Ajusta edicao de mensagens para limpar `embeds` ao editar `content`, limpar `content` ao editar `embeds`, e preservar campos com `:keep`.
+- Valida payloads antes da API para limites de embeds/anexos e combinacoes invalidas de Components V2.
+
+## 2.0.20 - 2026-06-30
+
+### Correcoes de REST
+
+- Porta o formato multipart do disnake: lista de partes `files[n]` e `payload_json`, com reset do arquivo antes do envio.
+
+## 2.0.19 - 2026-06-30
+
+### Correcoes de REST
+
+- Adiciona diagnostico de metodo, URL sanitizada, headers e formato do body em erros HTTP sem JSON.
+
+## 2.0.18 - 2026-06-30
+
+### Correcoes de REST
+
+- Normaliza multipart de followup webhook com `payload_json` primeiro e sem campos vazios.
+
+## 2.0.17 - 2026-06-30
+
+### Correcoes de REST
+
+- Envia `payload_json` com `Content-Type: application/json` e `.txt` como `text/plain` em multipart.
+
+## 2.0.16 - 2026-06-30
+
+### Correcoes de REST
+
+- Forca HTTP/1.1 na sessao REST do HTTPX para evitar `protocol_error` em interacoes e followups.
+
+## 2.0.15 - 2026-06-30
+
+### Correcoes de REST
+
+- Envia uploads `multipart/form-data` por `Net::HTTP` no adaptador REST para evitar rejeicao `HTTP 400` do Cloudflare em anexos.
+
+## 2.0.14 - 2026-06-30
+
+### Correcoes de REST
+
+- Corrige uploads `multipart/form-data` no adaptador HTTPX usando `form:` nativo, evitando `HTTP 400` HTML do Cloudflare em anexos.
+
 ## 2.0.13 - 2026-06-28
 
 ### Correcoes de gateway

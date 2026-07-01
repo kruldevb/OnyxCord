@@ -2,6 +2,7 @@
 
 require 'onyxcord/rate_limiter/gateway'
 require 'onyxcord/rate_limiter/rest'
+require 'onyxcord/rate_limiter/async_rest'
 
 describe OnyxCord::RateLimiter::Gateway do
   it 'waits when the send window is full' do
@@ -22,6 +23,26 @@ describe OnyxCord::RateLimiter::Gateway do
     limiter.wait
 
     expect(waits).to eq([60])
+  end
+end
+
+describe OnyxCord::RateLimiter::AsyncRest do
+  it 'blocks route requests while global rate limit lock is held' do
+    limiter = described_class.new
+    limiter.instance_variable_get(:@global_lock).lock
+    queue = Queue.new
+
+    thread = Thread.new do
+      limiter.before_request(:channels_cid, 123)
+      queue << :done
+    end
+
+    sleep 0.01
+    expect(queue.empty?).to be(true)
+
+    limiter.instance_variable_get(:@global_lock).unlock
+    expect(queue.pop).to eq(:done)
+    thread.join
   end
 end
 

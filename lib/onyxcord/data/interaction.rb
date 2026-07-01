@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 require 'onyxcord/webhooks'
-require 'onyxcord/message_components'
+require 'onyxcord/message_payload'
 
 module OnyxCord
   # Base class for interaction objects.
@@ -260,7 +260,7 @@ module OnyxCord
       components ||= view
       flags = OnyxCord::MessageComponents.apply_v2_flag(flags, components, force: has_components || components_v2)
       data = builder.to_json_hash
-      resp = OnyxCord::API::Interaction.edit_original_interaction_response(@token, @application_id, data[:content], data[:embeds], data[:allowed_mentions], components.to_a, attachments, flags, data[:poll])
+      resp = OnyxCord::API::Interaction.edit_original_interaction_response(@token, @application_id, edit_content(content, data), edit_embeds(embeds, data), data[:allowed_mentions], components.to_a, attachments, flags, data[:poll])
 
       Interactions::Message.new(JSON.parse(resp), @bot, self)
     end
@@ -324,7 +324,7 @@ module OnyxCord
       data = builder.to_json_hash
 
       resp = OnyxCord::API::Webhook.token_edit_message(
-        @token, @application_id, message.resolve_id, data[:content], data[:embeds], data[:allowed_mentions], components.to_a, attachments, flags, data[:poll]
+        @token, @application_id, message.resolve_id, edit_content(content, data), edit_embeds(embeds, data), data[:allowed_mentions], components.to_a, attachments, flags, data[:poll]
       )
       Interactions::Message.new(JSON.parse(resp), @bot, self)
     end
@@ -392,9 +392,17 @@ module OnyxCord
     # @param poll [Poll, Poll::Builder, Hash, nil]
     def prepare_builder(builder, content, embeds, allowed_mentions, poll)
       builder.poll = poll
-      builder.content = content
+      builder.content = content unless content == OnyxCord::MessagePayload::KEEP
       builder.allowed_mentions = allowed_mentions
-      embeds&.each { |embed| builder << embed }
+      embeds&.each { |embed| builder << embed } unless embeds == OnyxCord::MessagePayload::KEEP
+    end
+
+    def edit_content(content, data)
+      content == OnyxCord::MessagePayload::KEEP ? OnyxCord::MessagePayload::KEEP : data[:content]
+    end
+
+    def edit_embeds(embeds, data)
+      embeds == OnyxCord::MessagePayload::KEEP ? OnyxCord::MessagePayload::KEEP : data[:embeds]
     end
 
     # @!visibility private

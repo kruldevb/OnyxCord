@@ -21,6 +21,7 @@ module OnyxCord
       end
 
       def before_request(route, major_parameter)
+        wait_for(@global_lock)
         wait_for(mutex_for(route, major_parameter))
       end
 
@@ -142,7 +143,7 @@ module OnyxCord
       end
 
       def global_wait(time)
-        OnyxCord::AsyncRuntime.sleep(time)
+        async_wait(time, @global_lock)
       end
     end
   end

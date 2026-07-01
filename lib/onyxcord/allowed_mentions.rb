@@ -30,6 +30,14 @@ module OnyxCord
       @replied_user = replied_user
     end
 
+    def self.none
+      new(parse: [], users: [], roles: [], replied_user: false)
+    end
+
+    def self.all
+      new(parse: %w[users roles everyone], replied_user: true)
+    end
+
     # @!visibility private
     def to_hash
       {

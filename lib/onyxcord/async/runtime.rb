@@ -10,7 +10,7 @@ module OnyxCord
       current = Async::Task.current?
       return yield current if current
 
-      Async(&block).wait
+      Sync(&block)
     end
 
     def async(&block)

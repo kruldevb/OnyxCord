@@ -202,6 +202,7 @@ module OnyxCord
 
     def reconnect(attempt_resume = true)
       @session.suspend if @session && attempt_resume
+      @session.invalidate if attempt_resume && @session && !@received_hello
       @instant_reconnect = true
       @should_reconnect = true
       close(4000)
@@ -301,6 +302,7 @@ module OnyxCord
 
       @zlib_reader = Zlib::Inflate.new
       @pipe_broken = false
+      @received_hello = false
       @closed = false
 
       endpoint = websocket_endpoint(url)
@@ -316,9 +318,11 @@ module OnyxCord
         end
       end
     rescue StandardError => e
+      @session&.invalidate unless @received_hello
       LOGGER.error('Error connecting to gateway!')
       LOGGER.log_exception(e)
     ensure
+      @session&.invalidate unless @received_hello
       @closed = true
       @connection = nil
     end
@@ -424,6 +428,7 @@ module OnyxCord
 
     # Op 10
     def handle_hello(packet)
+      @received_hello = true
       LOGGER.debug('Hello!')
       interval = packet['d']['heartbeat_interval'].to_f / 1000.0
       setup_heartbeats(interval)

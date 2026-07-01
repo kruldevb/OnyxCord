@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require 'onyxcord/message_components'
+require 'onyxcord/message_payload'
 
 # API calls for Channel
 module OnyxCord::API::Channel
@@ -9,18 +9,12 @@ module OnyxCord::API::Channel
   # Build attachment metadata payload for multipart uploads.
   # Returns an array of { id:, filename: } hashes.
   def attachment_payload(attachments)
-    Array(attachments).map.with_index do |attachment, index|
-      { id: index, filename: File.basename(attachment.path) }
-    end
+    OnyxCord::MessagePayload.attachment_payload(attachments)
   end
 
   # Build multipart body with named file fields and JSON payload.
   def multipart_body(body, attachments)
-    files = Array(attachments).map.with_index.to_h do |attachment, index|
-      ["files[#{index}]", attachment]
-    end
-
-    { **files, payload_json: body.to_json }
+    OnyxCord::MessagePayload.multipart_body(body, attachments)
   end
 
   # Get a channel's data
@@ -113,6 +107,7 @@ module OnyxCord::API::Channel
     tts = false unless [true, false].include?(tts)
     components = OnyxCord::MessageComponents.payload(components) unless components.nil?
     flags = OnyxCord::MessageComponents.apply_v2_flag(flags, components)
+    OnyxCord::MessagePayload.validate!(content: message, embeds: embeds, components: components, flags: flags, attachments: attachments, poll: poll)
     body = { content: message, tts: tts == true, embeds: embeds, nonce: nonce, allowed_mentions: allowed_mentions, message_reference: message_reference, components: components, attachments: attachments ? attachment_payload(attachments) : nil, flags: flags, enforce_nonce: enforce_nonce, poll: poll }.compact
     body = if attachments
              multipart_body(body, attachments)
@@ -151,12 +146,14 @@ module OnyxCord::API::Channel
   def edit_message(token, channel_id, message_id, message, mentions = nil, embeds = nil, components = nil, flags = nil)
     components = OnyxCord::MessageComponents.payload(components) unless components.nil? || components == :undef
     flags = OnyxCord::MessageComponents.apply_v2_flag(flags, components)
+    body = OnyxCord::MessagePayload.edit_body(message, embeds)
+    body.merge!(allowed_mentions: mentions, components: components, flags: flags)
     OnyxCord::API.request(
       :channels_cid_messages_mid,
       channel_id,
       :patch,
       "#{OnyxCord::API.api_base}/channels/#{channel_id}/messages/#{message_id}",
-      { content: message, allowed_mentions: mentions, embeds: embeds, components: components, flags: flags }.reject { |_, v| v == :undef }.to_json,
+      body.reject { |_, v| v == :undef }.to_json,
       Authorization: token,
       content_type: :json
     )
@@ -655,6 +652,7 @@ module OnyxCord::API::Channel
   # Start a thread in a forum or media channel.
   # https://discord.com/developers/docs/resources/channel#start-thread-in-forum-or-media-channel
   def start_thread_in_forum_or_media_channel(token, channel_id, name, message, attachments = nil, rate_limit_per_user = nil, auto_archive_duration = nil, applied_tags = nil, reason = nil)
+    OnyxCord::MessagePayload.validate!(attachments: attachments)
     body = { name: name, message: message, rate_limit_per_user: rate_limit_per_user, auto_archive_duration: auto_archive_duration, applied_tags: applied_tags }.compact
 
     body = if attachments

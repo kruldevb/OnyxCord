@@ -1,0 +1,274 @@
+OnyxCord/
+├── .gitignore
+├── .markdownlint.json
+├── .overcommit.yml
+├── .rspec
+├── .rubocop.yml
+├── .ruby-lsp
+│   ├── .gitignore
+│   ├── Gemfile
+│   ├── Gemfile.lock
+│   ├── freshness_hash
+│   └── last_updated
+├── .yardopts
+├── CHANGELOG.md
+├── Gemfile
+├── Gemfile.lock
+├── LICENSE.txt
+├── README.md
+├── Rakefile
+├── bin
+│   ├── console
+│   └── setup
+├── coverage
+│   ├── .last_run.json
+│   ├── .resultset.json
+│   ├── .resultset.json.lock
+│   ├── assets
+│   │   └── 0.13.2
+│   │       ├── DataTables-1.10.20
+│   │       │   └── images
+│   │       │       ├── sort_asc.png
+│   │       │       ├── sort_asc_disabled.png
+│   │       │       ├── sort_both.png
+│   │       │       ├── sort_desc.png
+│   │       │       └── sort_desc_disabled.png
+│   │       ├── application.css
+│   │       ├── application.js
+│   │       ├── colorbox
+│   │       │   ├── border.png
+│   │       │   ├── controls.png
+│   │       │   ├── loading.gif
+│   │       │   └── loading_background.png
+│   │       ├── favicon_green.png
+│   │       ├── favicon_red.png
+│   │       ├── favicon_yellow.png
+│   │       ├── images
+│   │       │   ├── ui-bg_flat_0_aaaaaa_40x100.png
+│   │       │   ├── ui-bg_flat_75_ffffff_40x100.png
+│   │       │   ├── ui-bg_glass_55_fbf9ee_1x400.png
+│   │       │   ├── ui-bg_glass_65_ffffff_1x400.png
+│   │       │   ├── ui-bg_glass_75_dadada_1x400.png
+│   │       │   ├── ui-bg_glass_75_e6e6e6_1x400.png
+│   │       │   ├── ui-bg_glass_95_fef1ec_1x400.png
+│   │       │   ├── ui-bg_highlight-soft_75_cccccc_1x100.png
+│   │       │   ├── ui-icons_222222_256x240.png
+│   │       │   ├── ui-icons_2e83ff_256x240.png
+│   │       │   ├── ui-icons_454545_256x240.png
+│   │       │   ├── ui-icons_888888_256x240.png
+│   │       │   └── ui-icons_cd0a0a_256x240.png
+│   │       ├── loading.gif
+│   │       └── magnify.png
+│   └── index.html
+├── estrutura.txt
+├── examples
+│   ├── awaits.rb
+│   ├── commands.rb
+│   ├── components.rb
+│   ├── data
+│   │   ├── music.dca
+│   │   └── music.mp3
+│   ├── eval.rb
+│   ├── modals.rb
+│   ├── ping.rb
+│   ├── ping_with_respond_time.rb
+│   ├── pm_send.rb
+│   ├── prefix_proc.rb
+│   ├── select_menus.rb
+│   ├── shutdown.rb
+│   ├── slash_commands.rb
+│   ├── voice_send.rb
+│   └── webhooks.rb
+├── gerar_estrutura.rb
+├── lib
+│   ├── onyxcord
+│   │   ├── allowed_mentions.rb
+│   │   ├── api
+│   │   │   ├── application.rb
+│   │   │   ├── channel.rb
+│   │   │   ├── interaction.rb
+│   │   │   ├── invite.rb
+│   │   │   ├── server.rb
+│   │   │   ├── user.rb
+│   │   │   └── webhook.rb
+│   │   ├── api.rb
+│   │   ├── application_commands
+│   │   │   ├── command.rb
+│   │   │   ├── context.rb
+│   │   │   ├── option.rb
+│   │   │   └── registry.rb
+│   │   ├── application_commands.rb
+│   │   ├── async
+│   │   │   └── runtime.rb
+│   │   ├── await.rb
+│   │   ├── bot.rb
+│   │   ├── cache.rb
+│   │   ├── colour_rgb.rb
+│   │   ├── commands
+│   │   │   ├── command_bot.rb
+│   │   │   ├── container.rb
+│   │   │   ├── events.rb
+│   │   │   ├── parser.rb
+│   │   │   └── rate_limiter.rb
+│   │   ├── configuration.rb
+│   │   ├── container.rb
+│   │   ├── data
+│   │   │   ├── activity.rb
+│   │   │   ├── application.rb
+│   │   │   ├── attachment.rb
+│   │   │   ├── audit_logs.rb
+│   │   │   ├── avatar_decoration.rb
+│   │   │   ├── call.rb
+│   │   │   ├── channel.rb
+│   │   │   ├── channel_tag.rb
+│   │   │   ├── collectibles.rb
+│   │   │   ├── component.rb
+│   │   │   ├── embed.rb
+│   │   │   ├── emoji.rb
+│   │   │   ├── install_params.rb
+│   │   │   ├── integration.rb
+│   │   │   ├── interaction.rb
+│   │   │   ├── invite.rb
+│   │   │   ├── member.rb
+│   │   │   ├── message.rb
+│   │   │   ├── message_activity.rb
+│   │   │   ├── overwrite.rb
+│   │   │   ├── poll.rb
+│   │   │   ├── primary_server.rb
+│   │   │   ├── profile.rb
+│   │   │   ├── reaction.rb
+│   │   │   ├── recipient.rb
+│   │   │   ├── role.rb
+│   │   │   ├── role_connection_data.rb
+│   │   │   ├── role_subscription.rb
+│   │   │   ├── scheduled_event.rb
+│   │   │   ├── server.rb
+│   │   │   ├── server_preview.rb
+│   │   │   ├── snapshot.rb
+│   │   │   ├── team.rb
+│   │   │   ├── timestamp.rb
+│   │   │   ├── user.rb
+│   │   │   ├── voice_region.rb
+│   │   │   ├── voice_state.rb
+│   │   │   └── webhook.rb
+│   │   ├── data.rb
+│   │   ├── errors.rb
+│   │   ├── event_executor.rb
+│   │   ├── events
+│   │   │   ├── await.rb
+│   │   │   ├── bans.rb
+│   │   │   ├── channels.rb
+│   │   │   ├── generic.rb
+│   │   │   ├── guilds.rb
+│   │   │   ├── integrations.rb
+│   │   │   ├── interactions.rb
+│   │   │   ├── invites.rb
+│   │   │   ├── lifetime.rb
+│   │   │   ├── members.rb
+│   │   │   ├── message.rb
+│   │   │   ├── polls.rb
+│   │   │   ├── presence.rb
+│   │   │   ├── raw.rb
+│   │   │   ├── reactions.rb
+│   │   │   ├── roles.rb
+│   │   │   ├── scheduled_events.rb
+│   │   │   ├── threads.rb
+│   │   │   ├── typing.rb
+│   │   │   ├── voice_server_update.rb
+│   │   │   ├── voice_state_update.rb
+│   │   │   └── webhooks.rb
+│   │   ├── gateway.rb
+│   │   ├── http.rb
+│   │   ├── id_object.rb
+│   │   ├── json.rb
+│   │   ├── light
+│   │   │   ├── data.rb
+│   │   │   ├── integrations.rb
+│   │   │   └── light_bot.rb
+│   │   ├── light.rb
+│   │   ├── logger.rb
+│   │   ├── message_components.rb
+│   │   ├── paginator.rb
+│   │   ├── permissions.rb
+│   │   ├── rate_limiter
+│   │   │   ├── async_rest.rb
+│   │   │   ├── gateway.rb
+│   │   │   └── rest.rb
+│   │   ├── version.rb
+│   │   ├── voice
+│   │   │   ├── encoder.rb
+│   │   │   ├── network.rb
+│   │   │   ├── opcodes.rb
+│   │   │   ├── sodium.rb
+│   │   │   ├── timer.rb
+│   │   │   └── voice_bot.rb
+│   │   ├── webhooks
+│   │   │   ├── builder.rb
+│   │   │   ├── client.rb
+│   │   │   ├── embeds.rb
+│   │   │   ├── modal.rb
+│   │   │   ├── version.rb
+│   │   │   └── view.rb
+│   │   ├── webhooks.rb
+│   │   └── websocket.rb
+│   └── onyxcord.rb
+├── obsidian
+│   ├── organize
+│   │   └── onyxcord-deducoes.md
+│   └── plano-de-melhoria.md
+├── onyxcord-2.0.13.gem
+├── onyxcord.gemspec
+└── spec
+    ├── api
+    │   └── channel_spec.rb
+    ├── api_mock_spec.rb
+    ├── bot_spec.rb
+    ├── commands_spec.rb
+    ├── components_v2_spec.rb
+    ├── data
+    │   ├── channel_spec.rb
+    │   ├── emoji_spec.rb
+    │   ├── message_spec.rb
+    │   ├── role_spec.rb
+    │   └── webhook_spec.rb
+    ├── data_spec.rb
+    ├── errors_spec.rb
+    ├── event_executor_spec.rb
+    ├── event_spec.rb
+    ├── gateway_event_cache_spec.rb
+    ├── helpers_spec.rb
+    ├── http_spec.rb
+    ├── json_examples
+    │   ├── avatar.json
+    │   ├── emoji
+    │   │   ├── dispatch.json
+    │   │   ├── dispatch_add.json
+    │   │   ├── dispatch_event.json
+    │   │   ├── dispatch_remove.json
+    │   │   ├── dispatch_update.json
+    │   │   └── emoji_server.json
+    │   ├── emoji.json
+    │   ├── message.json
+    │   ├── role.json
+    │   ├── test.json
+    │   ├── text_channel.json
+    │   ├── user.json
+    │   ├── webhook
+    │   │   ├── update_avatar.json
+    │   │   ├── update_channel.json
+    │   │   └── update_name.json
+    │   └── webhook.json
+    ├── logger_spec.rb
+    ├── main_spec.rb
+    ├── mock
+    │   └── api_mock.rb
+    ├── overwrite_spec.rb
+    ├── paginator_spec.rb
+    ├── performance_core_spec.rb
+    ├── permissions_spec.rb
+    ├── rate_limiter_core_spec.rb
+    ├── rate_limiter_spec.rb
+    ├── sodium_spec.rb
+    ├── spec_helper.rb
+    ├── voice_state_update_spec.rb
+    └── webhooks_spec.rb

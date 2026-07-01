@@ -105,9 +105,17 @@ module OnyxCord::API
     response = OnyxCord::HTTP.request(type, url, body, **headers)
 
     if response.code == 403
-      noprm = OnyxCord::Errors::NoPermission.new
+      route = request_diagnostic(type, url, body, headers)
+      noprm = OnyxCord::Errors::NoPermission.new(
+        "The bot doesn't have the required permission to do this!",
+        status: response.code,
+        headers: response.headers,
+        route: route,
+        body: response.body,
+        response: response
+      )
       noprm.define_singleton_method(:_response) { response }
-      raise noprm, "The bot doesn't have the required permission to do this!"
+      raise noprm
     end
 
     # Retry on 502 Bad Gateway
@@ -157,20 +165,38 @@ module OnyxCord::API
 
       response = nil
       loop do
-        response = OnyxCord::HTTP.request(type, url, body, **headers)
-        break unless response.code == 502
+        begin
+          response = OnyxCord::HTTP.request(type, url, body, **headers)
+        rescue StandardError => e
+          retries += 1
+          raise unless retries < max_retries
+
+          OnyxCord::LOGGER.warn("Temporary HTTP failure while sending request (#{e.class}), retrying")
+          OnyxCord::AsyncRuntime.sleep(retries * 0.5)
+          next
+        end
+
+        break unless [500, 502, 503, 504].include?(response.code)
 
         retries += 1
         break unless retries < max_retries
 
-        OnyxCord::LOGGER.warn('Got a 502 while sending a request! Not a big deal, retrying the request')
+        OnyxCord::LOGGER.warn("Got HTTP #{response.code} while sending a request, retrying")
         OnyxCord::AsyncRuntime.sleep(retries * 0.5)
       end
 
       if response.code == 403
-        noprm = OnyxCord::Errors::NoPermission.new
+        route = request_diagnostic(type, url, body, headers)
+        noprm = OnyxCord::Errors::NoPermission.new(
+          "The bot doesn't have the required permission to do this!",
+          status: response.code,
+          headers: response.headers,
+          route: route,
+          body: response.body,
+          response: response
+        )
         noprm.define_singleton_method(:_response) { response }
-        raise noprm, "The bot doesn't have the required permission to do this!"
+        raise noprm
       end
 
       if response.code >= 400 && response.code != 429
@@ -180,10 +206,20 @@ module OnyxCord::API
           nil
         end
 
-        raise "HTTP #{response.code}: #{response.body}" unless data
+        route = request_diagnostic(type, url, body, headers)
+        unless data
+          raise OnyxCord::Errors::HTTPError.new(
+            "HTTP #{response.code} #{route}: #{response.body}",
+            status: response.code,
+            headers: response.headers,
+            route: route,
+            body: response.body,
+            response: response
+          )
+        end
 
         err_klass = OnyxCord::Errors.error_class_for(data['code'] || 0)
-        e = err_klass.new(data['message'], data['errors'])
+        e = err_klass.new(data['message'], data['errors'], status: response.code, headers: response.headers, route: route, body: response.body, response: response)
         OnyxCord::LOGGER.error(e.full_message)
         raise e
       end
@@ -241,6 +277,25 @@ module OnyxCord::API
     caller.each do |str|
       OnyxCord::LOGGER.ratelimit(" #{str}")
     end
+  end
+
+  def request_diagnostic(type, url, body, headers)
+    clean_url = url.to_s.sub(%r{/webhooks/(\d+)/[^?]+}, '/webhooks/\1/[token]')
+                      .sub(%r{/interactions/(\d+)/[^/]+}, '/interactions/\1/[token]')
+    header_keys = headers.keys.map(&:to_s).sort.join(',')
+    body_info = if body.is_a?(Hash)
+                  body.map do |key, value|
+                    path = value.path if value.respond_to?(:path)
+                    detail = path ? "file:#{File.basename(path)}" : value.to_s.bytesize
+                    "#{key}=#{detail}"
+                  end.join(',')
+                else
+                  body.nil? ? 'nil' : "#{body.class}:#{body.to_s.bytesize}"
+                end
+
+    "(#{type.to_s.upcase} #{clean_url} headers=#{header_keys} body=#{body_info})"
+  rescue StandardError => e
+    "(diagnostic_failed=#{e.class}: #{e.message})"
   end
 
   # Make an icon URL from server and icon IDs

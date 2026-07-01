@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require 'onyxcord/message_components'
+require 'onyxcord/message_payload'
 
 # API calls for interactions.
 module OnyxCord::API::Interaction
@@ -9,18 +9,12 @@ module OnyxCord::API::Interaction
   # Build attachment metadata payload for multipart uploads.
   # Returns an array of { id:, filename: } hashes.
   def attachment_payload(attachments)
-    Array(attachments).map.with_index do |attachment, index|
-      { id: index, filename: File.basename(attachment.path) }
-    end
+    OnyxCord::MessagePayload.attachment_payload(attachments)
   end
 
   # Build multipart body with named file fields and JSON payload.
   def multipart_body(body, attachments)
-    files = Array(attachments).map.with_index.to_h do |attachment, index|
-      ["files[#{index}]", attachment]
-    end
-
-    { **files, payload_json: body.to_json }
+    OnyxCord::MessagePayload.multipart_body(body, attachments)
   end
 
   # Respond to an interaction.
@@ -28,6 +22,7 @@ module OnyxCord::API::Interaction
   def create_interaction_response(interaction_token, interaction_id, type, content = nil, tts = nil, embeds = nil, allowed_mentions = nil, flags = nil, components = nil, attachments = nil, choices = nil, with_response = nil, poll = nil)
     components = OnyxCord::MessageComponents.payload(components) unless components.nil?
     flags = OnyxCord::MessageComponents.apply_v2_flag(flags, components)
+    OnyxCord::MessagePayload.validate!(content: content, embeds: embeds, components: components, flags: flags, attachments: attachments, poll: poll)
     data = { tts: tts, content: content, embeds: embeds, allowed_mentions: allowed_mentions, flags: flags, components: components, attachments: attachments ? attachment_payload(attachments) : nil, choices: choices, poll: poll }.compact
 
     body = if attachments
