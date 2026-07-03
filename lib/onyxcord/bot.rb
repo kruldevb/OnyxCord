@@ -1347,56 +1347,58 @@ module OnyxCord
     end
 
     def handle_dispatch(type, data)
-      # Check whether there are still unavailable servers and there have been more than 10 seconds since READY
-      if @unavailable_servers&.positive? && (Time.now - @unavailable_timeout_time) > 10 && !(@intents || 0).nobits?(INTENTS[:servers])
-        # The server streaming timed out!
-        LOGGER.debug("Server streaming timed out with #{@unavailable_servers} servers remaining")
-        LOGGER.debug('Calling ready now because server loading is taking a long time. Servers may be unavailable due to an outage, or your bot is on very large servers.')
+      # Instrument bot event dispatch with OnyxProfiler
+      OnyxCord::Profiler.instrument("bot.dispatch", event: type) do
+        # Check whether there are still unavailable servers and there have been more than 10 seconds since READY
+        if @unavailable_servers&.positive? && (Time.now - @unavailable_timeout_time) > 10 && !(@intents || 0).nobits?(INTENTS[:servers])
+          # The server streaming timed out!
+          LOGGER.debug("Server streaming timed out with #{@unavailable_servers} servers remaining")
+          LOGGER.debug('Calling ready now because server loading is taking a long time. Servers may be unavailable due to an outage, or your bot is on very large servers.')
 
-        # Unset the unavailable server count so this doesn't get triggered again
-        @unavailable_servers = 0
+          # Unset the unavailable server count so this doesn't get triggered again
+          @unavailable_servers = 0
 
-        notify_ready
-      end
-
-      case type
-      when :READY
-        # As READY may be called multiple times over a single process lifetime, we here need to reset the cache entirely
-        # to prevent possible inconsistencies, like objects referencing old versions of other objects which have been
-        # replaced.
-        init_cache
-
-        @profile = Profile.new(data['user'], self)
-
-        @client_id ||= data['application']['id']&.to_i
-
-        # Initialize servers
-        @servers = {}
-
-        # Count unavailable servers
-        @unavailable_servers = 0
-
-        data['guilds'].each do |element|
-          # Check for true specifically because unavailable=false indicates that a previously unavailable server has
-          # come online
-          if element['unavailable']
-            @unavailable_servers += 1
-
-            # Ignore any unavailable servers
-            next
-          end
-
-          ensure_server(element, true)
-        end
-
-        # Don't notify yet if there are unavailable servers because they need to get available before the bot truly has
-        # all the data
-        if @unavailable_servers.zero?
-          # No unavailable servers - we're ready!
           notify_ready
         end
 
-        @ready_time = Time.now
+        case type
+        when :READY
+          # As READY may be called multiple times over a single process lifetime, we here need to reset the cache entirely
+          # to prevent possible inconsistencies, like objects referencing old versions of other objects which have been
+          # replaced.
+          init_cache
+
+          @profile = Profile.new(data['user'], self)
+
+          @client_id ||= data['application']['id']&.to_i
+
+          # Initialize servers
+          @servers = {}
+
+          # Count unavailable servers
+          @unavailable_servers = 0
+
+          data['guilds'].each do |element|
+            # Check for true specifically because unavailable=false indicates that a previously unavailable server has
+            # come online
+            if element['unavailable']
+              @unavailable_servers += 1
+
+              # Ignore any unavailable servers
+              next
+            end
+
+            ensure_server(element, true)
+          end
+
+          # Don't notify yet if there are unavailable servers because they need to get available before the bot truly has
+          # all the data
+          if @unavailable_servers.zero?
+            # No unavailable servers - we're ready!
+            notify_ready
+          end
+
+          @ready_time = Time.now
         @unavailable_timeout_time = Time.now
       when :GUILD_MEMBERS_CHUNK
         id = data['guild_id'].to_i
@@ -1876,6 +1878,7 @@ module OnyxCord
         event = RawEvent.new(type, data, self)
         raise_event(event)
       end
+      end # End of OnyxProfiler.instrument block
     rescue Exception => e
       if defined?(Async::Cancel) && e.is_a?(Async::Cancel)
         LOGGER.debug('Gateway message handling was cancelled.')

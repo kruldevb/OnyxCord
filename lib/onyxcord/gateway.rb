@@ -6,6 +6,7 @@ require 'async/http/protocol/http11'
 require 'async/websocket/client'
 require 'onyxcord/async/runtime'
 require 'onyxcord/rate_limiter/gateway'
+require 'protocol/websocket'
 
 module OnyxCord
   # Gateway packet opcodes
@@ -66,7 +67,7 @@ module OnyxCord
   # Client for the Discord gateway protocol — fully async.
   class Gateway
     LARGE_THRESHOLD = 100
-    GATEWAY_VERSION = 9
+    GATEWAY_VERSION = ENV.fetch('DISCORD_GATEWAY_VERSION', '10').to_i
     FATAL_CLOSE_CODES = [4003, 4004, 4011, 4014].freeze
 
     attr_accessor :check_heartbeat_acks
@@ -317,6 +318,9 @@ module OnyxCord
           handle_message(message.to_str)
         end
       end
+    rescue Protocol::WebSocket::ClosedError, EOFError => e
+      LOGGER.warn("Gateway websocket closed (#{e.class}); reconnecting.")
+      @bot.__send__(:raise_event, Events::DisconnectEvent.new(@bot)) rescue nil
     rescue StandardError => e
       @session&.invalidate unless @received_hello
       LOGGER.error('Error connecting to gateway!')
@@ -386,18 +390,21 @@ module OnyxCord
       data = packet['d']
       type = packet['t'].intern
 
-      case type
-      when :READY
-        LOGGER.info("Discord gateway v#{data['v']}, requested: #{GATEWAY_VERSION}")
-        @session = Session.new(data['session_id'], data['resume_gateway_url'])
-        @session.sequence = 0
-        @bot.__send__(:notify_ready) if @intents && @intents.nobits?(INTENTS[:servers])
-      when :RESUMED
-        LOGGER.info 'Resumed'
-        return
-      end
+      # Instrument gateway events with OnyxProfiler
+      OnyxCord::Profiler.instrument("gateway.dispatch", event: type) do
+        case type
+        when :READY
+          LOGGER.info("Discord gateway v#{data['v']}, requested: #{GATEWAY_VERSION}")
+          @session = Session.new(data['session_id'], data['resume_gateway_url'])
+          @session.sequence = 0
+          @bot.__send__(:notify_ready) if @intents && @intents.nobits?(INTENTS[:servers])
+        when :RESUMED
+          LOGGER.info 'Resumed'
+          return
+        end
 
-      @bot.dispatch(packet)
+        @bot.dispatch(packet)
+      end
     end
 
     # Op 1

@@ -81,6 +81,11 @@ module OnyxCord
     # Logs an exception to the console.
     # @param e [Exception] The exception to log.
     def log_exception(e)
+      if defined?(OnyxCord::Errors::UnknownMessage) && e.is_a?(OnyxCord::Errors::UnknownMessage)
+        warn('Ignoring stale Discord message reference.')
+        return
+      end
+
       error("Exception: #{e.inspect}")
       e.backtrace.each { |line| error(line) }
     end

@@ -14,6 +14,10 @@ require 'onyxcord/webhooks'
 require 'onyxcord/bot'
 require 'onyxcord/commands/command_bot'
 require 'onyxcord/logger'
+require 'onyxcord/profiler'
+
+# Auto-configure OnyxProfiler if config file exists
+OnyxCord::Profiler.configure if File.exist?(OnyxCord::Profiler.config_path || File.join(Dir.pwd, 'onyxprofiler.config'))
 
 # All onyxcord functionality, to be extended by other files
 module OnyxCord

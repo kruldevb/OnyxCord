@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.1.1 - 2026-07-02
+
+### Correcoes de gateway
+
+- Usa Gateway v10 por padrao, mantendo `DISCORD_GATEWAY_VERSION` como override.
+- Trata `Protocol::WebSocket::ClosedError` e `EOFError` como fechamento de websocket recuperavel, evitando log de erro fatal durante reconnect.
+- Rebaixa `UnknownMessage` antigo para warning no logger, evitando ruido quando a mensagem do Discord ja foi removida.
+
 ## 2.1.0 - 2026-07-01
 
 ### Melhorias de REST e gateway
