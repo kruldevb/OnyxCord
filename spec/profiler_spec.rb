@@ -18,6 +18,7 @@ RSpec.describe OnyxCord::Profiler do
   describe '.instrument' do
     before do
       described_class.configure
+      OnyxProfiler.config.exporter = nil
     end
 
     it 'instruments a block of code' do
