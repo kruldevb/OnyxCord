@@ -1,5 +1,20 @@
 # Changelog
 
+## 2.1.5 - 2026-07-02
+
+### Observabilidade
+
+- Usa o envio em tempo real do `OnyxProfiler` por WebSocket quando disponivel.
+- Mantem fallback HTTP para o dashboard em `http://localhost:3000`.
+
+## 2.1.4 - 2026-07-02
+
+### Observabilidade
+
+- Adiciona `OnyxProfiler` como dependencia do OnyxCord.
+- Configura a instalacao local do `OnyxProfiler` pelo GitHub.
+- Instrumenta eventos do gateway e requests REST para envio ao dashboard em `http://localhost:3000`.
+
 ## 2.1.1 - 2026-07-02
 
 ### Correcoes de gateway

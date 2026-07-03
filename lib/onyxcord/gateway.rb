@@ -390,19 +390,20 @@ module OnyxCord
       data = packet['d']
       type = packet['t'].intern
 
-      # Instrument gateway events with OnyxProfiler
-      OnyxCord::Profiler.instrument("gateway.dispatch", event: type) do
-        case type
-        when :READY
-          LOGGER.info("Discord gateway v#{data['v']}, requested: #{GATEWAY_VERSION}")
-          @session = Session.new(data['session_id'], data['resume_gateway_url'])
-          @session.sequence = 0
-          @bot.__send__(:notify_ready) if @intents && @intents.nobits?(INTENTS[:servers])
-        when :RESUMED
-          LOGGER.info 'Resumed'
-          return
-        end
+      case type
+      when :READY
+        LOGGER.info("Discord gateway v#{data['v']}, requested: #{GATEWAY_VERSION}")
+        @session = Session.new(data['session_id'], data['resume_gateway_url'])
+        @session.sequence = 0
+        @bot.__send__(:notify_ready) if @intents && @intents.nobits?(INTENTS[:servers])
+      when :RESUMED
+        LOGGER.info 'Resumed'
+        return
+      end
 
+      if defined?(OnyxProfiler::Integrations::OnyxCord)
+        OnyxProfiler::Integrations::OnyxCord.gateway(event: type) { @bot.dispatch(packet) }
+      else
         @bot.dispatch(packet)
       end
     end

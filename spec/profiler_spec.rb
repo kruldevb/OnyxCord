@@ -3,6 +3,10 @@
 require 'onyxcord'
 
 RSpec.describe OnyxCord::Profiler do
+  before do
+    described_class.instance_variable_set(:@configured, false)
+  end
+
   describe '.configure' do
     it 'configures OnyxProfiler with default settings' do
       expect(OnyxProfiler).to receive(:configure).and_call_original

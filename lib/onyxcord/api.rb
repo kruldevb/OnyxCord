@@ -166,7 +166,13 @@ module OnyxCord::API
       response = nil
       loop do
         begin
-          response = OnyxCord::HTTP.request(type, url, body, **headers)
+          response = if defined?(OnyxProfiler::Integrations::OnyxCord)
+                       OnyxProfiler::Integrations::OnyxCord.api_request(method: type, url:) do
+                         OnyxCord::HTTP.request(type, url, body, **headers)
+                       end
+                     else
+                       OnyxCord::HTTP.request(type, url, body, **headers)
+                     end
         rescue StandardError => e
           retries += 1
           raise unless retries < max_retries

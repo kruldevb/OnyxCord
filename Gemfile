@@ -6,4 +6,4 @@ source 'https://rubygems.org'
 gemspec name: 'onyxcord'
 
 # OnyxProfiler for observability and profiling
-gem 'OnyxProfiler', path: '/home/kruldev/Documentos/Onyx/apps/OnyxProfiler'
+gem 'OnyxProfiler', git: 'https://github.com/kruldevb/OnyxProfiler.git'
