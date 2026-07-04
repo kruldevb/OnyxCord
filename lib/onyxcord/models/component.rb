@@ -49,12 +49,6 @@ module OnyxCord
     class ActionRow
       include Enumerable
 
-      DELEGATED_COMPONENT_METHODS = %i[
-        custom_id
-        value
-        values
-      ].freeze
-
       # @return [Integer] the numeric identifier of the action row.
       attr_reader :id
 
@@ -89,13 +83,6 @@ module OnyxCord
       # @!visibility private
       def to_a
         @components
-      end
-
-      DELEGATED_COMPONENT_METHODS.each do |name|
-        define_method(name) do
-          component = @components.first
-          component.public_send(name) if @components.one? && component.respond_to?(name)
-        end
       end
     end
 
@@ -498,14 +485,6 @@ module OnyxCord
 
     # A parent component for interactive modal components.
     class Label
-      # Methods from the wrapped interactive component that should remain
-      # available for legacy modal code that iterates over event.components.
-      DELEGATED_COMPONENT_METHODS = %i[
-        custom_id
-        value
-        values
-      ].freeze
-
       # @return [Integer] the numeric identifier of the label.
       attr_reader :id
 
@@ -525,12 +504,6 @@ module OnyxCord
         @label = data['label']
         @description = data['description']
         @component = Components.from_data(data['component'], @bot)
-      end
-
-      DELEGATED_COMPONENT_METHODS.each do |name|
-        define_method(name) do
-          @component.public_send(name) if @component.respond_to?(name)
-        end
       end
     end
 

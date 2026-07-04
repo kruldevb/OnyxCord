@@ -190,32 +190,6 @@ describe 'Components V2 support' do
   end
 
   describe OnyxCord::Webhooks::Modal do
-    it 'builds legacy modal rows with text inputs' do
-      modal = described_class.new do |m|
-        m.row do |row|
-          row.text_input(custom_id: 'interval_minutes', label: 'Intervalo em minutos', style: 1, value: '60', required: true)
-        end
-      end
-
-      expect(modal.to_a).to eq(
-        [
-          {
-            type: 1,
-            components: [
-              {
-                type: 4,
-                custom_id: 'interval_minutes',
-                label: 'Intervalo em minutos',
-                style: 1,
-                required: true,
-                value: '60'
-              }
-            ]
-          }
-        ]
-      )
-    end
-
     it 'builds modal labels with selects, text display, file upload, radio groups, checkbox groups, and checkboxes' do
       modal = described_class.new do |m|
         m.label(id: 1, label: 'Favorite bug', description: 'Choose one') do |label|
@@ -378,26 +352,6 @@ describe 'Components V2 support' do
   end
 
   describe OnyxCord::Components do
-    it 'keeps legacy modal row custom_id and value access for single inputs' do
-      row = described_class.from_data(
-        {
-          'type' => 1,
-          'components' => [
-            {
-              'type' => 4,
-              'custom_id' => 'interval_minutes',
-              'value' => '60'
-            }
-          ]
-        },
-        double('bot')
-      )
-
-      expect(row.custom_id).to eq('interval_minutes')
-      expect(row.value).to eq('60')
-      expect([row].find { |component| component.custom_id == 'interval_minutes' }&.value).to eq('60')
-    end
-
     it 'parses received Components V2 payloads' do
       component = described_class.from_data(
         {
@@ -437,9 +391,6 @@ describe 'Components V2 support' do
       expect(label.label).to eq('Pick many')
       expect(label.description).to eq('Choose all that apply')
       expect(label.component).to be_a(OnyxCord::Components::CheckboxGroup)
-      expect(label.custom_id).to eq('days')
-      expect(label.values).to eq(%w[mon fri])
-      expect(label.value).to be_nil
       expect(label.component.custom_id).to eq('days')
       expect(label.component.values).to eq(%w[mon fri])
 
@@ -455,9 +406,8 @@ describe 'Components V2 support' do
         },
         double('bot')
       )
-      expect(text_label.custom_id).to eq('aichat_prompt')
-      expect(text_label.value).to eq('Answer like OnyxAI.')
-      expect(text_label.values).to be_nil
+      expect(text_label.component.custom_id).to eq('aichat_prompt')
+      expect(text_label.component.value).to eq('Answer like OnyxAI.')
 
       expect(
         described_class.from_data(
