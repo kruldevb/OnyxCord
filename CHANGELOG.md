@@ -1,5 +1,11 @@
 # Changelog
 
+## 3.2.5 - 2026-07-04
+
+### Correções
+
+- Compatibiliza `ActionRow#custom_id`, `#value` e `#values` para modais legacy com um único componente, preservando handlers antigos que buscam inputs via `event.components.find`.
+
 ## 3.2.4 - 2026-07-04
 
 ### Correções

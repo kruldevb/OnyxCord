@@ -378,6 +378,26 @@ describe 'Components V2 support' do
   end
 
   describe OnyxCord::Components do
+    it 'keeps legacy modal row custom_id and value access for single inputs' do
+      row = described_class.from_data(
+        {
+          'type' => 1,
+          'components' => [
+            {
+              'type' => 4,
+              'custom_id' => 'interval_minutes',
+              'value' => '60'
+            }
+          ]
+        },
+        double('bot')
+      )
+
+      expect(row.custom_id).to eq('interval_minutes')
+      expect(row.value).to eq('60')
+      expect([row].find { |component| component.custom_id == 'interval_minutes' }&.value).to eq('60')
+    end
+
     it 'parses received Components V2 payloads' do
       component = described_class.from_data(
         {

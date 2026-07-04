@@ -49,6 +49,12 @@ module OnyxCord
     class ActionRow
       include Enumerable
 
+      DELEGATED_COMPONENT_METHODS = %i[
+        custom_id
+        value
+        values
+      ].freeze
+
       # @return [Integer] the numeric identifier of the action row.
       attr_reader :id
 
@@ -83,6 +89,13 @@ module OnyxCord
       # @!visibility private
       def to_a
         @components
+      end
+
+      DELEGATED_COMPONENT_METHODS.each do |name|
+        define_method(name) do
+          component = @components.first
+          component.public_send(name) if @components.one? && component.respond_to?(name)
+        end
       end
     end
 
