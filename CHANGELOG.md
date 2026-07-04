@@ -1,5 +1,11 @@
 # Changelog
 
+## 3.2.8 - 2026-07-04
+
+### Correções
+
+- Trata `Unknown Message` como referência antiga normal em chamadas REST, evitando log `[ERROR]` quando uma mensagem já foi apagada.
+
 ## 3.2.7 - 2026-07-04
 
 ### Correções

@@ -222,7 +222,11 @@ module OnyxCord::REST
 
         err_klass = OnyxCord::Errors.error_class_for(data['code'] || 0)
         e = err_klass.new(data['message'], data['errors'], status: response.code, headers: response.headers, route: route, body: response.body, response: response)
-        OnyxCord::LOGGER.error(e.full_message)
+        if e.is_a?(OnyxCord::Errors::UnknownMessage)
+          OnyxCord::LOGGER.warn('Ignoring stale Discord message reference.')
+        else
+          OnyxCord::LOGGER.error(e.full_message)
+        end
         raise e
       end
     rescue OnyxCord::Errors::NoPermission => e

@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require 'onyxcord/rest/client'
+require 'onyxcord'
 
 describe OnyxCord::REST do
   it 'raises typed HTTPError for non-json HTTP failures' do
@@ -30,5 +30,19 @@ describe OnyxCord::REST do
       expect(error.body).to eq('{"message":"Missing Permissions"}')
       expect(error.route).to include('GET https://discord.test/channels/123')
     }
+  end
+
+  it 'does not log Unknown Message as an error' do
+    response = instance_double('Response', code: 404, body: '{"code":10008,"message":"Unknown Message"}', headers: {})
+    allow(OnyxCord::Internal::HTTP).to receive(:request).and_return(response)
+    allow(OnyxCord::LOGGER).to receive(:warn)
+    allow(OnyxCord::LOGGER).to receive(:error)
+
+    expect do
+      described_class.request_async(:delete_message, 123, :delete, 'https://discord.test/channels/123/messages/456')
+    end.to raise_error(OnyxCord::Errors::UnknownMessage)
+
+    expect(OnyxCord::LOGGER).to have_received(:warn).with('Ignoring stale Discord message reference.')
+    expect(OnyxCord::LOGGER).not_to have_received(:error)
   end
 end
