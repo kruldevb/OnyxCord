@@ -1,10 +1,10 @@
 # frozen_string_literal: true
 
-# Mock for OnyxCord::API that allows setting arbitrary results and checking previous requests
-require 'onyxcord/json'
+# Mock for OnyxCord::REST that allows setting arbitrary results and checking previous requests
+require 'onyxcord/internal/json'
 
 module APIMock
-  refine OnyxCord::API.singleton_class do
+  refine OnyxCord::REST.singleton_class do
     attr_reader :last_method
     attr_reader :last_url
     attr_reader :last_body
@@ -16,7 +16,7 @@ module APIMock
       @last_method = type
       @last_url = attributes.first
       @last_body = if attributes[1]
-                     attributes[1].is_a?(Hash) ? nil : OnyxCord::JSON.parse(attributes[1])
+                     attributes[1].is_a?(Hash) ? nil : OnyxCord::Internal::JSON.parse(attributes[1])
                    end
       @last_headers = attributes.last
     end

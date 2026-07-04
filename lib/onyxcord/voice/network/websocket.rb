@@ -1,0 +1,225 @@
+# frozen_string_literal: true
+
+module OnyxCord::Voice
+  class VoiceWS
+    # The version of the voice gateway that's supposed to be used.
+    VOICE_GATEWAY_VERSION = 8
+
+    # @return [VoiceUDP] the UDP voice connection over which the actual audio data is sent.
+    attr_reader :udp
+
+    # Makes a new voice websocket client, but doesn't connect it (see {#connect} for that)
+    # @param channel [Channel] The voice channel to connect to
+    # @param bot [Bot] The regular bot to which this vWS is bound
+    # @param token [String] The authentication token which is also used for REST requests
+    # @param session [String] The voice session ID Discord sends over the regular websocket
+    # @param endpoint [String] The endpoint URL to connect to
+    def initialize(channel, bot, token, session, endpoint)
+      raise 'libsodium is unavailable - unable to create voice bot! Please read https://github.com/kruldevb/OnyxCord/wiki/Installing-libsodium' unless LIBSODIUM_AVAILABLE
+
+      @channel = channel
+      @bot = bot
+      @token = token
+      @session = session
+
+      @endpoint = endpoint
+
+      @udp = VoiceUDP.new
+    end
+
+    # Send a connection init packet (op 0)
+    # @param server_id [Integer] The ID of the server to connect to
+    # @param bot_user_id [Integer] The ID of the bot that is connecting
+    # @param session_id [String] The voice session ID
+    # @param token [String] The Discord authentication token
+    def send_init(server_id, bot_user_id, session_id, token)
+      send_opcode(
+        Opcodes::IDENTIFY,
+        {
+          server_id: server_id,
+          user_id: bot_user_id,
+          session_id: session_id,
+          token: token
+        }
+      )
+    end
+
+    # Sends the UDP connection packet (op 1)
+    # @param ip [String] The IP to bind UDP to
+    # @param port [Integer] The port to bind UDP to
+    # @param mode [Object] Which mode to use for the voice connection
+    def send_udp_connection(ip, port, mode)
+      send_opcode(
+        Opcodes::SELECT_PROTOCOL,
+        {
+          protocol: 'udp',
+          data: {
+            address: ip,
+            port: port,
+            mode: mode
+          }
+        }
+      )
+    end
+
+    # Send a heartbeat (op 3), has to be done every @heartbeat_interval seconds or the connection will terminate
+    def send_heartbeat
+      millis = Time.now.strftime('%s%L').to_i
+      @bot.debug("Sending voice heartbeat at #{millis}")
+
+      send_opcode(
+        Opcodes::HEARTBEAT,
+        {
+          t: millis,
+          seq_ack: @seq
+        }
+      )
+    end
+
+    # Send a speaking packet (op 5). This determines the green circle around the avatar in the voice channel
+    # @param value [true, false, Integer] Whether or not the bot should be speaking, can also be a bitmask denoting audio type.
+    def send_speaking(value)
+      @bot.debug("Speaking: #{value}")
+      send_opcode(
+        Opcodes::SPEAKING,
+        {
+          speaking: value,
+          delay: 0
+        }
+      )
+    end
+
+    def send_opcode(opcode, data)
+      @bot.debug("Sending voice opcode #{opcode} with data: #{data}")
+      @client.send({
+        op: opcode,
+        d: data
+      }.to_json)
+    end
+
+    # Event handlers; public for websocket-simple to work correctly
+    # @!visibility private
+    def websocket_open
+      # Give the current thread a name ('Voice Web Socket Internal')
+      Thread.current[:onyxcord_name] = 'vws-i'
+
+      # Send the init packet
+      send_init(@channel.server.id, @bot.profile.id, @session, @token)
+    end
+
+    # @!visibility private
+    def websocket_message(msg)
+      @bot.debug("Received VWS message! #{msg}")
+      packet = JSON.parse(msg)
+
+      @seq = packet['seq'] if packet['seq']
+
+      case packet['op']
+      when OnyxCord::Voice::Opcodes::READY
+        # Opcode 2 contains data to initialize the UDP connection
+        @ws_data = packet['d']
+
+        @ssrc = @ws_data['ssrc']
+        @port = @ws_data['port']
+
+        @udp_mode = (ENCRYPTION_MODES & @ws_data['modes']).first
+
+        @udp.connect(@ws_data['ip'], @port, @ssrc)
+        @udp.send_discovery
+      when OnyxCord::Voice::Opcodes::SESSION_DESCRIPTION
+        # Opcode 4 sends the secret key used for encryption
+        @ws_data = packet['d']
+
+        # Reset the sequence when starting a new session
+        @seq = 0
+
+        @ready = true
+        @udp.secret_key = @ws_data['secret_key'].pack('C*')
+        @udp.mode = @ws_data['mode']
+      when OnyxCord::Voice::Opcodes::HELLO
+        # Opcode 8 contains the heartbeat interval.
+        @heartbeat_interval = packet['d']['heartbeat_interval']
+        send_heartbeat
+      end
+    end
+
+    # Communication goes like this:
+    # me                    discord
+    #   |                      |
+    # websocket connect ->     |
+    #   |                      |
+    #   |     <- websocket opcode 2
+    #   |                      |
+    # UDP discovery ->         |
+    #   |                      |
+    #   |       <- UDP reply packet
+    #   |                      |
+    # websocket opcode 1 ->    |
+    #   |                      |
+    # ...
+    def connect
+      # Connect websocket
+      @thread = Thread.new do
+        Thread.current[:onyxcord_name] = 'vws'
+        init_ws
+      end
+
+      @bot.debug('Started websocket initialization, now waiting for UDP discovery reply')
+
+      # Now wait for opcode 2 and the resulting UDP reply packet
+      ip, port = @udp.receive_discovery_reply
+      @bot.debug("UDP discovery reply received! #{ip} #{port}")
+
+      # Send UDP init packet with received UDP data
+      send_udp_connection(ip, port, @udp_mode)
+
+      @bot.debug('Waiting for op 4 now')
+
+      # Wait for op 4, then finish
+      sleep 0.05 until @ready
+    end
+
+    # Disconnects the websocket and kills the thread
+    def destroy(join_timeout = 1)
+      @heartbeat_running = false
+      @client&.close
+      @udp.close
+      @thread&.join(join_timeout)
+      @thread&.kill if @thread&.alive?
+    end
+
+    private
+
+    def heartbeat_loop
+      @heartbeat_running = true
+      while @heartbeat_running
+        if @heartbeat_interval
+          sleep @heartbeat_interval / 1000.0
+          send_heartbeat
+        else
+          # If no interval has been set yet, sleep a second and check again
+          sleep 1
+        end
+      end
+    end
+
+    def init_ws
+      host = "wss://#{@endpoint}/?v=#{VOICE_GATEWAY_VERSION}"
+      @bot.debug("Connecting VWS to host: #{host}")
+
+      # Connect the WS
+      @client = Internal::WebSocket.new(
+        host,
+        method(:websocket_open),
+        method(:websocket_message),
+        proc { |e| OnyxCord::LOGGER.error "VWS error: #{e}" },
+        proc { |e| OnyxCord::LOGGER.warn "VWS close: #{e}" }
+      )
+
+      @bot.debug('VWS connected')
+
+      # Block any further execution
+      heartbeat_loop
+    end
+  end
+end

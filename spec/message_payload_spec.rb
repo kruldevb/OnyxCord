@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
-require 'onyxcord/message_payload'
-require 'onyxcord/allowed_mentions'
+require 'onyxcord/internal/message_payload'
+require 'onyxcord/utils/allowed_mentions'
 require 'stringio'
 
 describe OnyxCord::MessagePayload do

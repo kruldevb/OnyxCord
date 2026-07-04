@@ -15,7 +15,7 @@ bot.message(content: 'TEST') do |event|
         menu.option(label: 'Value 2', value: '2', description: 'Second value', emoji: { name: '2️⃣' })
         menu.option(label: 'Value 3', value: '3', description: 'Third value', emoji: { name: '3️⃣' })
       end
-      # Same as above with the alias to keep the compatibility with the old method
+      # Same as above with the select alias
       # r.select_menu(custom_id: 'string_select', placeholder: 'Test of StringSelect', max_values: 3) do |ss|
       #   ss.option(label: 'Value 1', value: '1', description: 'First value', emoji: { name: '1️⃣' })
       #   ss.option(label: 'Value 2', value: '2', description: 'Second value', emoji: { name: '2️⃣' })
@@ -56,7 +56,7 @@ bot.message(content: 'TEST') do |event|
 end
 
 bot.string_select do |event|
-  # bot.select_menu do |event| # also available with the alias to keep the compatibility with the old method
+  # bot.select_menu do |event|
   event.interaction.respond(
     content: "**[STRING_SELECT]**\nYou have chosen the values: **#{event.values.join('**, **')}**",
     ephemeral: true

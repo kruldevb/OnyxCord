@@ -27,6 +27,9 @@ describe OnyxCord do
                           "#{'a' * 800}\n#{'a' * 800}\n",
                           "#{'a' * 800}\n#{'a' * 800}"
                         ])
+
+    large = OnyxCord.split_message("#{'x' * 100}\n" * 200)
+    expect(large.all? { |chunk| chunk.length <= OnyxCord::CHARACTER_LIMIT }).to eq(true)
   end
 
   describe OnyxCord::IDObject do

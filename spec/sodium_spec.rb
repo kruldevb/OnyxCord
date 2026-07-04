@@ -45,7 +45,7 @@ end
 describe OnyxCord::Voice::VoiceWS do
   it 'closes websocket, udp, and joins its owner thread on destroy' do
     ws = described_class.allocate
-    client = instance_double(OnyxCord::WebSocket, close: nil)
+    client = instance_double(OnyxCord::Internal::WebSocket, close: nil)
     udp = instance_double(OnyxCord::Voice::VoiceUDP, close: nil)
     thread = instance_double(Thread, join: nil, alive?: false)
 

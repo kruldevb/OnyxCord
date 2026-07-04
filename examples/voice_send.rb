@@ -8,7 +8,7 @@
 
 require 'onyxcord'
 
-bot = OnyxCord::Commands::CommandBot.new token: ENV.fetch('ONYXCORD_TOKEN'), prefix: '!'
+bot = OnyxCord::Commands::Bot.new token: ENV.fetch('ONYXCORD_TOKEN'), prefix: '!'
 
 bot.command(:connect) do |event|
   # The `voice_channel` method returns the voice channel the user is currently in, or `nil` if the user is not in a
@@ -31,7 +31,7 @@ bot.command(:play_mp3) do |event|
   # bot may be connected to more than one voice channel (never more than one on the same server, though), this is
   # necessary to allow the differentiation of servers.
   #
-  # It returns a `VoiceBot` object that methods such as `play_file` can be called on.
+  # It returns a `Client` object that methods such as `play_file` can be called on.
   voice_bot = event.voice
   voice_bot.play_file(File.expand_path('data/music.mp3', __dir__))
 end

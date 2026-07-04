@@ -1,11 +1,14 @@
 # frozen_string_literal: true
 
-require 'onyxcord/application_commands/option'
-require 'onyxcord/application_commands/command'
-require 'onyxcord/application_commands/context'
-require 'onyxcord/application_commands/registry'
+require 'onyxcord/interactions'
 
 module OnyxCord
   module ApplicationCommands
+    Command = Interactions::Command
+    Option = Interactions::Option
+    Context = Interactions::Context
+    Registry = Interactions::Registry
+    OptionBuilder = Interactions::OptionBuilder
+    PermissionBuilder = Interactions::PermissionBuilder
   end
 end

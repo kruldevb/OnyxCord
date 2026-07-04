@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require 'onyxcord/version'
+require 'onyxcord/core/version'
 
 module OnyxCord
   module Webhooks

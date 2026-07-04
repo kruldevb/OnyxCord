@@ -285,13 +285,13 @@ describe 'Components V2 support' do
   describe OnyxCord::Webhooks::Client do
     it 'sends Components V2 flags and with_components for direct webhook execution' do
       client = described_class.new(url: 'https://discord.com/api/v9/webhooks/1/token')
-      allow(OnyxCord::HTTP).to receive(:post)
+      allow(OnyxCord::Internal::HTTP).to receive(:post)
 
       client.execute(nil, false) do |_builder, view|
         view.text_display(content: 'Webhook UI')
       end
 
-      expect(OnyxCord::HTTP).to have_received(:post) do |url, body, headers|
+      expect(OnyxCord::Internal::HTTP).to have_received(:post) do |url, body, headers|
         expect(url).to eq('https://discord.com/api/v9/webhooks/1/token?wait=false&with_components=true')
         expect(JSON.parse(body)).to include(
           'flags' => flag,
@@ -302,17 +302,17 @@ describe 'Components V2 support' do
     end
   end
 
-  describe OnyxCord::API::Webhook do
+  describe OnyxCord::REST::Webhook do
     it 'adds with_components and IS_COMPONENTS_V2 for webhook token execution' do
       request = nil
-      allow(OnyxCord::API).to receive(:request) { |*args| request = args }
+      allow(OnyxCord::REST).to receive(:request) { |*args| request = args }
 
       described_class.token_execute_webhook(
         'token', 1, false, nil, nil, nil, nil, nil, nil, nil, nil,
         [{ type: 10, content: 'API UI' }]
       )
 
-      expect(request[3]).to eq("#{OnyxCord::API.api_base}/webhooks/1/token?wait=false&with_components=true")
+      expect(request[3]).to eq("#{OnyxCord::REST.api_base}/webhooks/1/token?wait=false&with_components=true")
       expect(JSON.parse(request[4])).to include(
         'flags' => flag,
         'components' => [{ 'type' => 10, 'content' => 'API UI' }]
@@ -320,11 +320,11 @@ describe 'Components V2 support' do
     end
   end
 
-  describe OnyxCord::API::Channel do
+  describe OnyxCord::REST::Channel do
     it 'sets IS_COMPONENTS_V2 when creating a channel message with V2 components' do
       request = nil
       view = OnyxCord::Webhooks::View.new { |v| v.text_display(content: 'Channel UI') }
-      allow(OnyxCord::API).to receive(:request) { |*args| request = args }
+      allow(OnyxCord::REST).to receive(:request) { |*args| request = args }
 
       described_class.create_message('token', 1, nil, false, nil, nil, nil, nil, nil, view)
 
@@ -335,11 +335,11 @@ describe 'Components V2 support' do
     end
   end
 
-  describe OnyxCord::API::Interaction do
+  describe OnyxCord::REST::Interaction do
     it 'sets IS_COMPONENTS_V2 when responding with V2 components' do
       request = nil
       view = OnyxCord::Webhooks::View.new { |v| v.text_display(content: 'Interaction UI') }
-      allow(OnyxCord::API).to receive(:request) { |*args| request = args }
+      allow(OnyxCord::REST).to receive(:request) { |*args| request = args }
 
       described_class.create_interaction_response('token', 1, 4, nil, nil, nil, nil, 64, view)
 

@@ -7,7 +7,7 @@
 
 require 'onyxcord'
 
-bot = OnyxCord::Commands::CommandBot.new token: 'B0T.T0KEN.here', prefix: '!'
+bot = OnyxCord::Commands::Bot.new token: 'B0T.T0KEN.here', prefix: '!'
 
 bot.command(:eval, help_available: false) do |event, *code|
   break unless event.user.id == 66237334693085184 # Replace number with your ID

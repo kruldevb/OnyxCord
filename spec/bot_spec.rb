@@ -203,7 +203,7 @@ describe OnyxCord::Bot do
 
       it 'executes the application command through the configured event executor' do
         handled = false
-        bot.instance_variable_set(:@event_executor, OnyxCord::EventExecutor::Inline.new)
+        bot.instance_variable_set(:@event_executor, OnyxCord::Internal::EventExecutor::Inline.new)
         bot.instance_variable_set(:@application_commands, { ping: proc { handled = true } })
         allow(bot).to receive(:raise_event)
 
@@ -260,7 +260,7 @@ describe OnyxCord::Bot do
       file = double(:file, original_filename: original_filename, read: true)
       new_filename = double('new filename')
 
-      allow(OnyxCord::API::Channel).to receive(:upload_file).and_return('{}')
+      allow(OnyxCord::REST::Channel).to receive(:upload_file).and_return('{}')
       allow(OnyxCord::Message).to receive(:new)
 
       bot.send_file(channel, file, filename: new_filename)
@@ -271,7 +271,7 @@ describe OnyxCord::Bot do
       original_filename = double(:original_filename)
       file = double(:file, read: true, original_filename: original_filename)
 
-      allow(OnyxCord::API::Channel).to receive(:upload_file).and_return('{}')
+      allow(OnyxCord::REST::Channel).to receive(:upload_file).and_return('{}')
       allow(OnyxCord::Message).to receive(:new)
 
       bot.send_file(channel, file)
@@ -281,7 +281,7 @@ describe OnyxCord::Bot do
     it 'prepends "SPOILER_" when spoiler is truthy and the filename does not start with "SPOILER_"' do
       file = double(:file, read: true)
 
-      allow(OnyxCord::API::Channel).to receive(:upload_file).and_return('{}')
+      allow(OnyxCord::REST::Channel).to receive(:upload_file).and_return('{}')
       allow(OnyxCord::Message).to receive(:new)
 
       bot.send_file(channel, file, filename: 'file.txt', spoiler: true)
@@ -291,7 +291,7 @@ describe OnyxCord::Bot do
     it 'does not prepend "SPOILER_" if the filename starts with "SPOILER_"' do
       file = double(:file, read: true, path: 'SPOILER_file.txt')
 
-      allow(OnyxCord::API::Channel).to receive(:upload_file).and_return('{}')
+      allow(OnyxCord::REST::Channel).to receive(:upload_file).and_return('{}')
       allow(OnyxCord::Message).to receive(:new)
 
       bot.send_file(channel, file, spoiler: true)
@@ -301,7 +301,7 @@ describe OnyxCord::Bot do
     it 'uses the original filename when spoiler is truthy and filename is nil' do
       file = double(:file, read: true, path: 'file.txt')
 
-      allow(OnyxCord::API::Channel).to receive(:upload_file).and_return('{}')
+      allow(OnyxCord::REST::Channel).to receive(:upload_file).and_return('{}')
       allow(OnyxCord::Message).to receive(:new)
 
       bot.send_file(channel, file, spoiler: true)

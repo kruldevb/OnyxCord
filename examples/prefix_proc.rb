@@ -3,7 +3,7 @@
 require 'onyxcord'
 
 # Here, we'll demonstrate one way to achieve a dynamic command prefix
-# in different contexts for your CommandBot.
+# in different contexts for your Commands::Bot.
 # We'll use a frozen hash configuration, but you're free to implement
 # any kind of lookup. (ex: server, channel, user, phase of the moon)
 
@@ -14,7 +14,7 @@ PREFIXES = {
   83281822225530880 => '?'
 }.freeze
 
-# The CommandBot initializer accepts a Proc as a prefix, which will be
+# The Commands::Bot initializer accepts a Proc as a prefix, which will be
 # evaluated with each message to parse the command string (the message)
 # that gets passed to the internal command parser.
 # We'll check what channel the message was in, get its prefix, and
@@ -42,7 +42,7 @@ prefix_proc = proc do |message|
 end
 
 # Setup a new bot with our prefix proc
-bot = OnyxCord::Commands::CommandBot.new(token: 'token', prefix: prefix_proc)
+bot = OnyxCord::Commands::Bot.new(token: 'token', prefix: prefix_proc)
 
 # A simple dice roll command, use it like: '!roll 2d10'
 bot.command(:roll, description: 'rolls some dice',

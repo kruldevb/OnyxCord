@@ -1,12 +1,12 @@
 # frozen_string_literal: true
 
-# This bot has various commands that show off CommandBot.
+# This bot has various commands that show off Commands::Bot.
 
 require 'onyxcord'
 
-# Here we instantiate a `CommandBot` instead of a regular `Bot`, which has the functionality to add commands using the
+# Here we instantiate a `Commands::Bot` instead of a regular `Bot`, which has the functionality to add commands using the
 # `command` method. We have to set a `prefix` here, which will be the character that triggers command execution.
-bot = OnyxCord::Commands::CommandBot.new token: 'B0T.T0KEN.here', prefix: '!'
+bot = OnyxCord::Commands::Bot.new token: 'B0T.T0KEN.here', prefix: '!'
 
 bot.command :user do |event|
   # Commands send whatever is returned from the block to the channel. This allows for compact commands like this,

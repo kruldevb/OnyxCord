@@ -4,7 +4,7 @@
 
 require 'onyxcord'
 
-bot = OnyxCord::Commands::CommandBot.new token: 'B0T.T0KEN.here', prefix: '!'
+bot = OnyxCord::Commands::Bot.new token: 'B0T.T0KEN.here', prefix: '!'
 
 # Here we can see the `help_available` property used, which can determine whether a command shows up in the default
 # generated `help` command. It is true by default but it can be set to false to hide internal commands that only

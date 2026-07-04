@@ -151,19 +151,19 @@ describe OnyxCord::Webhooks do
       let(:name) { instance_double(String) }
 
       before do
-        allow(OnyxCord::HTTP).to receive(:patch).with(any_args)
+        allow(OnyxCord::Internal::HTTP).to receive(:patch).with(any_args)
       end
 
       it 'sends a PATCH request to the URL' do
         subject.modify
 
-        expect(OnyxCord::HTTP).to have_received(:patch).with(provided_url, anything, 'content-type' => 'application/json')
+        expect(OnyxCord::Internal::HTTP).to have_received(:patch).with(provided_url, anything, 'content-type' => 'application/json')
       end
     end
 
     describe '#delete' do
       before do
-        allow(OnyxCord::HTTP).to receive(:delete).with(any_args)
+        allow(OnyxCord::Internal::HTTP).to receive(:delete).with(any_args)
       end
 
       it 'sends a DELETE request to the URL' do
@@ -171,7 +171,7 @@ describe OnyxCord::Webhooks do
 
         subject.delete(reason: reason)
 
-        expect(OnyxCord::HTTP).to have_received(:delete).with(provided_url, 'X-Audit-Log-Reason' => reason)
+        expect(OnyxCord::Internal::HTTP).to have_received(:delete).with(provided_url, 'X-Audit-Log-Reason' => reason)
       end
     end
 
@@ -181,7 +181,7 @@ describe OnyxCord::Webhooks do
       let(:default_builder) { instance_double(OnyxCord::Webhooks::Builder, to_json_hash: json_hash) }
 
       before do
-        allow(OnyxCord::HTTP).to receive(:patch).with(any_args)
+        allow(OnyxCord::Internal::HTTP).to receive(:patch).with(any_args)
       end
 
       it 'creates a new builder if one is not provided' do
@@ -197,7 +197,7 @@ describe OnyxCord::Webhooks do
 
         subject.edit_message(message_id)
 
-        expect(OnyxCord::HTTP).to have_received(:patch).with("#{url}/messages/#{message_id}", instance_of(String), 'content-type' => 'application/json')
+        expect(OnyxCord::Internal::HTTP).to have_received(:patch).with("#{url}/messages/#{message_id}", instance_of(String), 'content-type' => 'application/json')
       end
     end
 
@@ -208,13 +208,13 @@ describe OnyxCord::Webhooks do
       subject { described_class.new(url: base_url) }
 
       before do
-        allow(OnyxCord::HTTP).to receive(:delete).with(any_args)
+        allow(OnyxCord::Internal::HTTP).to receive(:delete).with(any_args)
       end
 
       it 'sends a DELETE request to the message URL' do
         subject.delete_message(message_id)
 
-        expect(OnyxCord::HTTP).to have_received(:delete).with("#{base_url}/messages/#{message_id}")
+        expect(OnyxCord::Internal::HTTP).to have_received(:delete).with("#{base_url}/messages/#{message_id}")
       end
     end
 
@@ -222,7 +222,7 @@ describe OnyxCord::Webhooks do
       let(:builder) { OnyxCord::Webhooks::Builder.new(content: 'value') }
 
       before do
-        allow(OnyxCord::HTTP).to receive(:post).with(any_args)
+        allow(OnyxCord::Internal::HTTP).to receive(:post).with(any_args)
         allow(provided_url).to receive(:+).with(anything).and_return(provided_url)
       end
 
@@ -231,7 +231,7 @@ describe OnyxCord::Webhooks do
 
         url = 'https://discord.com/api/v9/webhooks?wait=false'
 
-        expect(OnyxCord::HTTP).to have_received(:post).with(url, builder.to_json_hash.merge({ components: [] }).to_json, 'content-type' => 'application/json')
+        expect(OnyxCord::Internal::HTTP).to have_received(:post).with(url, builder.to_json_hash.merge({ components: [] }).to_json, 'content-type' => 'application/json')
       end
 
       it 'waits when wait=true' do
@@ -239,7 +239,7 @@ describe OnyxCord::Webhooks do
 
         url = 'https://discord.com/api/v9/webhooks?wait=true'
 
-        expect(OnyxCord::HTTP).to have_received(:post).with(url, builder.to_json_hash.merge({ components: [] }).to_json, 'content-type' => 'application/json')
+        expect(OnyxCord::Internal::HTTP).to have_received(:post).with(url, builder.to_json_hash.merge({ components: [] }).to_json, 'content-type' => 'application/json')
       end
     end
 
@@ -249,7 +249,7 @@ describe OnyxCord::Webhooks do
       let(:builder) { instance_double(OnyxCord::Webhooks::Builder, to_multipart_hash: multipart_hash) }
 
       before do
-        allow(OnyxCord::HTTP).to receive(:post).with(any_args)
+        allow(OnyxCord::Internal::HTTP).to receive(:post).with(any_args)
         allow(multipart_hash).to receive(:[]=).and_return(instance_of(Array))
         allow(multipart_hash).to receive(:compact).and_return(post_data)
       end
@@ -259,7 +259,7 @@ describe OnyxCord::Webhooks do
 
         url = 'https://discord.com/api/v9/webhooks?wait=false'
 
-        expect(OnyxCord::HTTP).to have_received(:post).with(url, post_data)
+        expect(OnyxCord::Internal::HTTP).to have_received(:post).with(url, post_data)
       end
 
       it 'waits for a response when wait=true' do
@@ -267,7 +267,7 @@ describe OnyxCord::Webhooks do
 
         url = 'https://discord.com/api/v9/webhooks?wait=true'
 
-        expect(OnyxCord::HTTP).to have_received(:post).with(url, post_data)
+        expect(OnyxCord::Internal::HTTP).to have_received(:post).with(url, post_data)
       end
 
       it 'adds a thread_id when it is provided' do
@@ -275,7 +275,7 @@ describe OnyxCord::Webhooks do
 
         url = 'https://discord.com/api/v9/webhooks?wait=false&thread_id=123456'
 
-        expect(OnyxCord::HTTP).to have_received(:post).with(url, post_data)
+        expect(OnyxCord::Internal::HTTP).to have_received(:post).with(url, post_data)
       end
     end
 

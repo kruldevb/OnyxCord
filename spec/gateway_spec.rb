@@ -1,13 +1,13 @@
 # frozen_string_literal: true
 
-require 'onyxcord/gateway'
+require 'onyxcord/gateway/client'
 
-describe OnyxCord::Gateway do
+describe OnyxCord::Gateway::Client do
   let(:bot) { double('Bot') }
   let(:gateway) { described_class.new(bot, 'token', nil, :stream, 0) }
 
   it 'invalidates a suspended session when reconnecting before HELLO' do
-    session = OnyxCord::Session.new('sid', 'wss://resume.test')
+    session = OnyxCord::Internal::Gateway::Session.new('sid', 'wss://resume.test')
     session.suspend
     gateway.instance_variable_set(:@session, session)
     gateway.instance_variable_set(:@received_hello, false)
@@ -19,7 +19,7 @@ describe OnyxCord::Gateway do
   end
 
   it 'keeps a suspended session resumable after HELLO' do
-    session = OnyxCord::Session.new('sid', 'wss://resume.test')
+    session = OnyxCord::Internal::Gateway::Session.new('sid', 'wss://resume.test')
     session.suspend
     gateway.instance_variable_set(:@session, session)
     gateway.instance_variable_set(:@received_hello, true)

@@ -69,7 +69,29 @@ module OnyxCord::Commands
         aliases: attributes[:aliases] || []
       }
 
+      @before_hooks = []
+      @after_hooks = []
       @block = block
+    end
+
+    # Registers a before hook. The hook receives the event and arguments.
+    # Return +false+ to cancel command execution.
+    # @yieldparam event [CommandEvent] The event.
+    # @yieldparam args [Array<String>] The command arguments.
+    # @return [self]
+    def before(&hook)
+      @before_hooks << hook
+      self
+    end
+
+    # Registers an after hook. The hook receives the event, arguments, and the result.
+    # @yieldparam event [CommandEvent] The event.
+    # @yieldparam args [Array<String>] The command arguments.
+    # @yieldparam result [Object] The return value of the command block.
+    # @return [self]
+    def after(&hook)
+      @after_hooks << hook
+      self
     end
 
     # Calls this command and executes the code inside.
@@ -105,8 +127,15 @@ module OnyxCord::Commands
         end
       end
 
+      cancelled = @before_hooks.any? { |hook| hook.call(event, *arguments).is_a?(FalseClass) }
+      return if cancelled
+
       result = @block.call(event, *arguments)
       event.drain_into(result)
+
+      @after_hooks.each { |hook| hook.call(event, *arguments, result) }
+
+      result
     rescue LocalJumpError => e # occurs when breaking
       result = e.exit_value
       event.drain_into(result)
@@ -138,7 +167,7 @@ module OnyxCord::Commands
   # Command chain, may have multiple commands, nested and commands
   class CommandChain
     # @param chain [String] The string the chain should be parsed from.
-    # @param bot [CommandBot] The bot that executes this command chain.
+    # @param bot [Commands::Bot] The bot that executes this command chain.
     # @param subchain [true, false] Whether this chain is a sub chain of another chain.
     def initialize(chain, bot, subchain = false)
       @attributes = bot.attributes

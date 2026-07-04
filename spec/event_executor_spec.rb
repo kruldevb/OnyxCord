@@ -1,9 +1,9 @@
 # frozen_string_literal: true
 
-require 'onyxcord/event_executor'
+require 'onyxcord/internal/event_executor'
 
-describe OnyxCord::EventExecutor do
-  describe OnyxCord::EventExecutor::Inline do
+describe OnyxCord::Internal::EventExecutor do
+  describe OnyxCord::Internal::EventExecutor::Inline do
     it 'runs jobs immediately' do
       ran = false
 
@@ -13,7 +13,7 @@ describe OnyxCord::EventExecutor do
     end
   end
 
-  describe OnyxCord::EventExecutor::Pool do
+  describe OnyxCord::Internal::EventExecutor::Pool do
     it 'uses a fixed number of worker threads and drains queued jobs on shutdown' do
       executor = described_class.new(size: 2)
       mutex = Mutex.new

@@ -12,7 +12,7 @@ describe 'OnyxCord performance core' do
 
   def packet(type, data = {})
     {
-      'op' => OnyxCord::Opcodes::DISPATCH,
+      'op' => OnyxCord::Internal::Gateway::Opcodes::DISPATCH,
       't' => type,
       's' => 1,
       'd' => data
@@ -47,7 +47,7 @@ describe 'OnyxCord performance core' do
       expect(bot.mode).to eq(:hybrid)
       expect(bot.cache_policy[:servers]).to be(true)
       expect(bot.cache_policy[:users]).to be(false)
-      expect(bot.event_executor).to be_a(OnyxCord::EventExecutor::Inline)
+      expect(bot.event_executor).to be_a(OnyxCord::Internal::EventExecutor::Inline)
     end
   end
 
@@ -165,7 +165,7 @@ describe 'OnyxCord performance core' do
 
       expect(bot.runtime_stats).to include(
         mode: :hybrid,
-        event_executor: 'OnyxCord::EventExecutor::Inline',
+        event_executor: 'OnyxCord::Internal::EventExecutor::Inline',
         event_threads: 0,
         event_queue_size: 0
       )

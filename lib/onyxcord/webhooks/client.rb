@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
-require 'onyxcord/http'
-require 'onyxcord/json'
+require 'onyxcord/internal/http'
+require 'onyxcord/internal/json'
 
 require 'onyxcord/webhooks/builder'
 
@@ -38,7 +38,7 @@ module OnyxCord::Webhooks
     #       embed.image = OnyxCord::Webhooks::EmbedImage.new(url: 'https://i.imgur.com/PcMltU7.jpg')
     #     end
     #   end
-    # @return [OnyxCord::HTTP::Response] the response returned by Discord.
+    # @return [::OnyxCord::Internal::HTTP::Response] the response returned by Discord.
     def execute(builder = nil, wait = false, components = nil, thread_id: nil, flags: nil, has_components: false, components_v2: false)
       raise TypeError, 'builder needs to be nil or like a OnyxCord::Webhooks::Builder!' unless
         (builder.respond_to?(:file) && builder.respond_to?(:to_multipart_hash)) || builder.respond_to?(:to_json_hash) || builder.nil?
@@ -61,9 +61,9 @@ module OnyxCord::Webhooks
     # @param name [String, nil] The default name.
     # @param avatar [String, #read, nil] The new avatar, in base64-encoded JPG format.
     # @param channel_id [String, Integer, nil] The channel to move the webhook to.
-    # @return [OnyxCord::HTTP::Response] the response returned by Discord.
+    # @return [::OnyxCord::Internal::HTTP::Response] the response returned by Discord.
     def modify(name: nil, avatar: nil, channel_id: nil)
-      OnyxCord::HTTP.patch(
+      ::OnyxCord::Internal::HTTP.patch(
         @url,
         { name: name, avatar: avatarise(avatar), channel_id: channel_id }.compact.to_json,
         'content-type' => 'application/json'
@@ -72,10 +72,10 @@ module OnyxCord::Webhooks
 
     # Delete this webhook.
     # @param reason [String, nil] The reason this webhook was deleted.
-    # @return [OnyxCord::HTTP::Response] the response returned by Discord.
+    # @return [::OnyxCord::Internal::HTTP::Response] the response returned by Discord.
     # @note This is permanent and cannot be undone.
     def delete(reason: nil)
-      OnyxCord::HTTP.delete(@url, 'X-Audit-Log-Reason' => reason)
+      ::OnyxCord::Internal::HTTP.delete(@url, 'X-Audit-Log-Reason' => reason)
     end
 
     # Edit a message from this webhook.
@@ -85,7 +85,7 @@ module OnyxCord::Webhooks
     # @param embeds [Array<Embed, Hash>]
     # @param allowed_mentions [Hash]
     # @param thread_id [String, Integer, nil] The id of the thread in which the message resides
-    # @return [OnyxCord::HTTP::Response] the response returned by Discord.
+    # @return [::OnyxCord::Internal::HTTP::Response] the response returned by Discord.
     # @example Edit message content
     #   client.edit_message(message_id, content: 'goodbye world!')
     # @example Edit a message via builder
@@ -106,7 +106,7 @@ module OnyxCord::Webhooks
       builder_flags = data[:flags] if data.is_a?(Hash)
       flags = View.apply_v2_flag(flags || builder_flags, components, force: has_components || components_v2)
       data = data.merge({ content: content, embeds: embeds, allowed_mentions: allowed_mentions, components: components, flags: flags }.compact)
-      OnyxCord::HTTP.patch(
+      ::OnyxCord::Internal::HTTP.patch(
         "#{@url}/messages/#{message_id}#{(query.empty? ? '' : "?#{query}")}",
         data.compact.to_json,
         'content-type' => 'application/json'
@@ -115,9 +115,9 @@ module OnyxCord::Webhooks
 
     # Delete a message created by this webhook.
     # @param message_id [String, Integer] The ID of the message to delete.
-    # @return [OnyxCord::HTTP::Response] the response returned by Discord.
+    # @return [::OnyxCord::Internal::HTTP::Response] the response returned by Discord.
     def delete_message(message_id)
-      OnyxCord::HTTP.delete("#{@url}/messages/#{message_id}")
+      ::OnyxCord::Internal::HTTP.delete("#{@url}/messages/#{message_id}")
     end
 
     private
@@ -139,7 +139,7 @@ module OnyxCord::Webhooks
       flags = View.apply_v2_flag(flags || builder_flags, components, force: has_components)
       data = data.merge({ components: components })
       data[:flags] = flags unless flags.nil?
-      OnyxCord::HTTP.post(
+      ::OnyxCord::Internal::HTTP.post(
         encode_url(wait, thread_id, with_components: components.any?),
         data.to_json,
         'content-type' => 'application/json'
@@ -153,7 +153,7 @@ module OnyxCord::Webhooks
       flags = View.apply_v2_flag(flags || builder_flags, components, force: has_components)
       data[:components] = components if components.any?
       data[:flags] = flags unless flags.nil?
-      OnyxCord::HTTP.post(
+      ::OnyxCord::Internal::HTTP.post(
         encode_url(wait, thread_id, with_components: components.any?),
         data.compact
       )

@@ -1,11 +1,11 @@
 # frozen_string_literal: true
 
-require 'onyxcord/http'
-require 'onyxcord/api'
-require 'onyxcord/api/webhook'
-require 'onyxcord/upload'
+require 'onyxcord/internal/http'
+require 'onyxcord/rest/client'
+require 'onyxcord/rest/routes/webhook'
+require 'onyxcord/internal/upload'
 
-describe OnyxCord::HTTP do
+describe OnyxCord::Internal::HTTP do
   after do
     described_class.reset!
   end
@@ -25,7 +25,7 @@ describe OnyxCord::HTTP do
   end
 
   it 'forces REST requests over HTTP/1.1' do
-    base = class_double(HTTPX)
+    class_double(HTTPX)
     persistent = instance_double('HTTPX::Session')
     redirects = instance_double('HTTPX::Session')
     session = instance_double('HTTPX::Session')
@@ -69,7 +69,7 @@ describe OnyxCord::HTTP do
 
   it 'uses disnake-style multipart ordering' do
     file = instance_double('File', path: '/tmp/file.txt')
-    body = OnyxCord::API::Webhook.multipart_body({ content: 'ok' }, [file])
+    body = OnyxCord::REST::Webhook.multipart_body({ content: 'ok' }, [file])
 
     expect(body.map { |part| part[:name] }).to eq(['files[0]', 'payload_json'])
   end
@@ -87,7 +87,7 @@ describe OnyxCord::HTTP do
     file = instance_double('File', path: '/tmp/file.txt')
 
     expect do
-      OnyxCord::API::Webhook.token_execute_webhook('token', '123', false, 'ok', nil, nil, nil, file, nil, nil, nil, nil, [file])
+      OnyxCord::REST::Webhook.token_execute_webhook('token', '123', false, 'ok', nil, nil, nil, file, nil, nil, nil, nil, [file])
     end.to raise_error(ArgumentError, /cannot mix file and attachments/)
   end
 end

@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require 'onyxcord/data'
+require 'onyxcord/models'
 
 module OnyxCord::Light
   # Represents the bot account used for the light bot, but without any methods to change anything.

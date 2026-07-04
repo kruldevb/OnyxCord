@@ -1,19 +1,81 @@
 # Changelog
 
-## 2.1.5 - 2026-07-02
+## 3.2.0 - 2026-07-03
 
-### Observabilidade
+### Novas features — Application Commands
 
-- Usa o envio em tempo real do `OnyxProfiler` por WebSocket quando disponivel.
-- Mantem fallback HTTP para o dashboard em `http://localhost:3000`.
+- **`Interactions::Command`**: adicionado tipo `primary_entry_point` (type 4) com factory e `description` opcional.
+- **`Interactions::Option`**: suporte completo a `name_localizations`, `description_localizations` e `choice_localizations` em todas as opções.
+- **`Interactions::OptionBuilder`**: todos os 11 tipos de opção (`string`, `integer`, `boolean`, `user`, `channel`, `role`, `mentionable`, `number`, `attachment`, `subcommand`, `subcommand_group`) agora aceitam `name_localizations`, `description_localizations` e `choice_localizations`.
+- **`Interactions::Context`**: novos métodos `#locale` e `#guild_locale` para localização do usuário/servidor. Fix em `#member` que agora retorna `nil` ou `OnyxCord::Member` ao invés de `event.user`.
+- **`ApplicationCommand::TYPES`**: inclui `primary_entry_point: 4`.
 
-## 2.1.4 - 2026-07-02
+### Novas features — Flags de resposta
 
-### Observabilidade
+- **`Interaction`**: constantes `FLAGS` com `ephemeral: 64`, `suppress_embeds: 4`, `suppress_notifications: 4096`.
+- **`respond`**, **`defer`**, **`update_message`**, **`send_message`**: aceitam `suppress_embeds:` e `suppress_notifications:` como parâmetros keyword.
 
-- Adiciona `OnyxProfiler` como dependencia do OnyxCord.
-- Configura a instalacao local do `OnyxProfiler` pelo GitHub.
-- Instrumenta eventos do gateway e requests REST para envio ao dashboard em `http://localhost:3000`.
+### Novas features — Prefix Commands (Middleware)
+
+- **`Command#before`**: registra hooks que rodam antes do bloco do comando. Retornar `false` cancela a execução.
+- **`Command#after`**: registra hooks que rodam depois do bloco do comando, recebendo evento, argumentos e resultado.
+- **`CommandContainer#middleware`**: DSL para registrar hooks `before`/`after` em comandos existentes, incluindo resolução por `CommandAlias`.
+
+### Novas features — REST API
+
+- **`create_global_command`** / **`edit_global_command`**: aceitam `name_localizations:` e `description_localizations:`.
+- **`create_guild_command`** / **`edit_guild_command`**: aceitam `name_localizations:`, `description_localizations:` e `integration_types:`.
+- **`set_application_role_connection_metadata_records`**: novo endpoint PUT para atualizar metadados de conexão de roles.
+
+### Reorganização interna
+
+- **Split `models/interaction.rb`**: de 1151 linhas para ~350, extraindo 5 classes para `interactions/internal/`:
+  - `ApplicationCommand` + `Permission`
+  - `OptionBuilder`
+  - `PermissionBuilder`
+  - `Message`
+  - `Metadata`
+- **Split `rest/routes/interaction.rb`**: em `interaction/base.rb` (create_interaction_response, modal) e `interaction/response.rb` (get/edit/delete original).
+- **Unificação `ApplicationCommands` → `Interactions`**: módulos de alias mantidos para compatibilidade, canonical module agora é `Interactions`.
+- **Split de eventos**: todos os 15 arquivos de eventos monolíticos convertidos em agregadores com subdiretórios (`events/member/`, `events/ban/`, `events/invite/`, `events/role/`, `events/thread/`, `events/integration/`, `events/poll/`, `events/webhook/`, `events/presence/`, `events/typing/`, `events/raw/`, `events/voice/`, `events/lifetime/`, `events/await/`).
+
+### Correções
+
+- `interactions/internal/` adicionado ao Zeitwerk ignore list para evitar carregamento automático antes do `Interaction` estar definido.
+- `Metadata` usa checks hardcoded (`@type == 1`) em vez de referenciar `Interaction::TYPES` para evitar dependência circular.
+- Removidos 9 disables rubocop redundantes em model classes.
+- Fix whitespace e `Performance/CollectionLiteralInLoop` em `option.rb` e `rest/client.rb`.
+- Fix `Style/MultilineBlockChain` em `http.rb`.
+
+### Validação
+
+- `bundle exec rspec`: 599 exemplos, 0 falhas, 3 pendentes.
+- `bundle exec rubocop lib/onyxcord/ spec/`: 282 arquivos, 0 offenses.
+- Coverage: 66.79%.
+- `gem build onyxcord.gemspec`: sucesso.
+
+## 3.1.0 - 2026-07-03
+
+### Reorganizacao quebravel
+
+- Reorganiza a arvore interna por dominio: `rest`, `models`, `gateway`, `core`, `cache` e `internal`.
+- Remove os requires antigos `onyxcord/api*`, `onyxcord/data*`, `onyxcord/gateway`, `onyxcord/websocket`, `onyxcord/rate_limiter/*` e helpers core soltos.
+- Renomeia a superficie REST interna de `OnyxCord::API` para `OnyxCord::REST`.
+- Renomeia `OnyxCord::Commands::CommandBot` para `OnyxCord::Commands::Bot` e `OnyxCord::Voice::VoiceBot` para `OnyxCord::Voice::Client`, sem aliases antigos.
+- Centraliza o bootstrap no entrypoint `onyxcord.rb` com Zeitwerk e agregadores para arquivos historicos que ainda mantem constantes publicas.
+- Divide rotas REST grandes em `rest/routes/channel/*` e `rest/routes/server/*`.
+- Divide eventos grandes em `events/message/*` e `events/interactions/*`.
+- Divide eventos restantes de maior tamanho em `events/channels/*`, `events/guilds/*`, `events/reactions/*` e `events/scheduled_events/*`.
+- Divide o registro de handlers em `events/handlers/*`, deixando `container.rb` como loader.
+- Divide builders de componentes em `webhooks/view/*` e networking de voz em `voice/network/*`.
+- Divide modal builders em `webhooks/modal/*` e remove aliases deprecated de modal.
+- Divide `OnyxCord::Commands::Bot` em concerns sob `commands/bot/*`.
+- Divide `OnyxCord::Bot` em concerns internos sob `core/bot/*`, mantendo o entrypoint menor.
+- Extrai dispatch de gateway para `OnyxCord::Internal::EventBus`.
+- Extrai mutacoes de cache/eventos de gateway para `cache/stores/gateway.rb`.
+- Reescreve `OnyxCord.split_message` com algoritmo linear, mantendo quebra por linha/espaco e evitando a combinacao de linhas que consumia memoria.
+
+
 
 ## 2.1.1 - 2026-07-02
 
@@ -132,12 +194,12 @@
 
 ### Async Runtime (Infraestrutura nao-bloqueante)
 
-- **`OnyxCord::AsyncRuntime`**: modulo central que gerencia o reactor `async` com `run`, `async` e `sleep`, reaproveitando reactor existente quando disponivel.
+- **`OnyxCord::Internal::AsyncRuntime`**: modulo central que gerencia o reactor `async` com `run`, `async` e `sleep`, reaproveitando reactor existente quando disponivel.
 - **`EventExecutor::AsyncPool`**: novo pool de workers baseado em `Async::Queue` e fibers, sem threads.
 - **Gateway**: `run_async` nao cria mais `Thread.new` — usa `@task = AsyncRuntime.async { run }`. Todos os `sleep` trocados por `AsyncRuntime.sleep`.
 - **WebSocket**: usa `AsyncRuntime.async` em vez de `Async do` solto na classe.
 - **API REST**: `request` agora delega para `request_async` automaticamente quando dentro de um reactor. `request_async` usa rate limiter async, `AsyncRuntime.sleep`, e retry com limite em 502.
-- **Rate Limiter Async**: novo `OnyxCord::RateLimiter::AsyncRest` que evita `mutex.synchronize { sleep }` bloqueante.
+- **Rate Limiter Async**: novo `OnyxCord::Internal::RateLimiter::AsyncRest` que evita `mutex.synchronize { sleep }` bloqueante.
 - **Bot**: `run`/`stop`/`join` refatorados para o runtime async. `send_temporary_message` e `voice_connect` usam sleeps async.
 - Compatibilidade sync mantida: a API publica continua funcionando de forma sincrona quando chamada fora de um reactor.
 

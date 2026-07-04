@@ -19,7 +19,7 @@ module OnyxCord::Commands
     #   creates {CommandAlias} objects in the container ({#commands}) that refer to the newly created command.
     #   Additionally, the default help command will identify these command names as an alias where applicable.
     # @option attributes [Integer] :permission_level The minimum permission level that can use this command, inclusive.
-    #   See {CommandBot#set_user_permission} and {CommandBot#set_role_permission}.
+    #   See {Commands::Bot#set_user_permission} and {Commands::Bot#set_role_permission}.
     # @option attributes [String, false] :permission_message Message to display when a user does not have sufficient
     #   permissions to execute a command. %name% in the message will be replaced with the name of the command. Disable
     #   the message by setting this option to false.
@@ -34,7 +34,7 @@ module OnyxCord::Commands
     # @option attributes [true, false] :chain_usable Whether this command is able to be used inside of a command chain
     #   or sub-chain. Typically used for administrative commands that shouldn't be done carelessly.
     # @option attributes [true, false] :help_available Whether this command is visible in the help command. See the
-    #   :help_command attribute of {CommandBot#initialize}.
+    #   :help_command attribute of {Commands::Bot#initialize}.
     # @option attributes [String] :description A short description of what this command does. Will be shown in the help
     #   command if the user asks for it.
     # @option attributes [String] :usage A short description of how this command should be used. Will be displayed in
@@ -91,6 +91,25 @@ module OnyxCord::Commands
 
       @commands ||= {}
       @commands.merge! handlers
+    end
+
+    # Registers a before or after hook on an existing command.
+    # @param command_name [Symbol] The name of the command to hook.
+    # @param type [:before, :after] The hook type.
+    # @yieldparam event [CommandEvent] The event.
+    # @yieldparam args [Array<String>] The command arguments.
+    # @yieldparam result [Object] The command result (after hooks only).
+    # @return [self]
+    def middleware(command_name, type = :before, &hook)
+      cmd = @commands&.fetch(command_name, nil)
+      cmd = cmd.aliased_command if cmd.is_a?(CommandAlias)
+      return self unless cmd.is_a?(Command)
+
+      case type
+      when :before then cmd.before(&hook)
+      when :after then cmd.after(&hook)
+      end
+      self
     end
 
     # Includes another container into this one.

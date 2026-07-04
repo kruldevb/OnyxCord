@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require 'onyxcord/data'
+require 'onyxcord/models'
 require 'onyxcord/light/data'
 
 module OnyxCord::Light

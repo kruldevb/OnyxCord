@@ -1,10 +1,10 @@
 # frozen_string_literal: true
 
-require 'onyxcord/rate_limiter/gateway'
-require 'onyxcord/rate_limiter/rest'
-require 'onyxcord/rate_limiter/async_rest'
+require 'onyxcord/internal/rate_limiter/gateway'
+require 'onyxcord/internal/rate_limiter/rest'
+require 'onyxcord/internal/rate_limiter/async_rest'
 
-describe OnyxCord::RateLimiter::Gateway do
+describe OnyxCord::Internal::RateLimiter::Gateway do
   it 'waits when the send window is full' do
     now = Time.at(0)
     waits = []
@@ -26,7 +26,7 @@ describe OnyxCord::RateLimiter::Gateway do
   end
 end
 
-describe OnyxCord::RateLimiter::AsyncRest do
+describe OnyxCord::Internal::RateLimiter::AsyncRest do
   it 'blocks route requests while global rate limit lock is held' do
     limiter = described_class.new
     limiter.instance_variable_get(:@global_lock).lock
@@ -46,7 +46,7 @@ describe OnyxCord::RateLimiter::AsyncRest do
   end
 end
 
-describe OnyxCord::RateLimiter::Rest do
+describe OnyxCord::Internal::RateLimiter::Rest do
   it 'records Discord bucket ids and waits on depleted buckets' do
     limiter = described_class.new
     waits = []

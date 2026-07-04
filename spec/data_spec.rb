@@ -5,8 +5,8 @@ require 'mock/api_mock'
 
 using APIMock
 
-require 'data/channel_spec'
-require 'data/emoji_spec'
-require 'data/message_spec'
-require 'data/role_spec'
-require 'data/webhook_spec'
+require 'models/channel_spec'
+require 'models/emoji_spec'
+require 'models/message_spec'
+require 'models/role_spec'
+require 'models/webhook_spec'

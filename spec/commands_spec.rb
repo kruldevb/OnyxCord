@@ -12,7 +12,7 @@ TEST_CHANNELS = [
   '#channel-five'
 ].freeze
 
-describe OnyxCord::Commands::CommandBot, order: :defined do
+describe OnyxCord::Commands::Bot, order: :defined do
   let(:server) { double('server', id: 123) }
   let(:text_channel_data) { load_data_file(:text_channel) }
   let(:default_channel_id) { 123 }
@@ -88,7 +88,7 @@ describe OnyxCord::Commands::CommandBot, order: :defined do
   end
 
   context 'no defined commands' do
-    bot = OnyxCord::Commands::CommandBot.new token: 'token', help_available: false
+    bot = OnyxCord::Commands::Bot.new token: 'token', help_available: false
 
     it 'should successfully trigger the command' do
       event = double
@@ -106,7 +106,7 @@ describe OnyxCord::Commands::CommandBot, order: :defined do
   end
 
   context 'single command' do
-    bot = OnyxCord::Commands::CommandBot.new token: 'token', help_available: false
+    bot = OnyxCord::Commands::Bot.new token: 'token', help_available: false
 
     bot.command :name do
       SIMPLE_RESPONSE
@@ -125,7 +125,7 @@ describe OnyxCord::Commands::CommandBot, order: :defined do
     let(:plain_event) { command_event_double_for_channel(first_channel) }
 
     context 'as a string' do
-      bot = OnyxCord::Commands::CommandBot.new(token: 'token', command_doesnt_exist_message: 'command %command% does not exist!')
+      bot = OnyxCord::Commands::Bot.new(token: 'token', command_doesnt_exist_message: 'command %command% does not exist!')
 
       it 'replies with the message including % substitution' do
         expect(plain_event).to receive(:respond).with('command bleep_blorp does not exist!')
@@ -135,7 +135,7 @@ describe OnyxCord::Commands::CommandBot, order: :defined do
     end
 
     context 'as a lambda' do
-      bot = OnyxCord::Commands::CommandBot.new(token: 'token', command_doesnt_exist_message: ->(event) { "command %command% does not exist in #{event.channel.name} and 1+2=#{1 + 2}" })
+      bot = OnyxCord::Commands::Bot.new(token: 'token', command_doesnt_exist_message: ->(event) { "command %command% does not exist in #{event.channel.name} and 1+2=#{1 + 2}" })
 
       it 'executes the lambda and replies with a message including % substitution' do
         expect(plain_event).to receive(:respond).with('command bleep_blorp does not exist in test-channel and 1+2=3')
@@ -145,7 +145,7 @@ describe OnyxCord::Commands::CommandBot, order: :defined do
     end
 
     context 'with a nil' do
-      bot = OnyxCord::Commands::CommandBot.new(token: 'token', command_doesnt_exist_message: ->(_event) {})
+      bot = OnyxCord::Commands::Bot.new(token: 'token', command_doesnt_exist_message: ->(_event) {})
 
       it 'does not reply' do
         expect(plain_event).to_not receive(:respond)
@@ -157,7 +157,7 @@ describe OnyxCord::Commands::CommandBot, order: :defined do
 
   describe '#execute_command', order: :defined do
     context 'with role filter', order: :defined do
-      bot = OnyxCord::Commands::CommandBot.new(token: 'token', help_available: false)
+      bot = OnyxCord::Commands::Bot.new(token: 'token', help_available: false)
 
       describe 'required_roles' do
         before do
@@ -214,7 +214,7 @@ describe OnyxCord::Commands::CommandBot, order: :defined do
 
     context 'with channel filter', order: :defined do
       context 'when list is not initialized in bot parameters', order: :defined do
-        bot = OnyxCord::Commands::CommandBot.new(token: 'token', help_available: false)
+        bot = OnyxCord::Commands::Bot.new(token: 'token', help_available: false)
 
         bot.command :name do
           SIMPLE_RESPONSE
@@ -259,7 +259,7 @@ describe OnyxCord::Commands::CommandBot, order: :defined do
       end
 
       context 'when list is initialized in bot parameters', order: :defined do
-        bot = OnyxCord::Commands::CommandBot.new(token: 'token', help_available: false, channels: [TEST_CHANNELS[0]])
+        bot = OnyxCord::Commands::Bot.new(token: 'token', help_available: false, channels: [TEST_CHANNELS[0]])
 
         bot.command :name do
           SIMPLE_RESPONSE
@@ -319,7 +319,7 @@ describe OnyxCord::Commands::CommandBot, order: :defined do
       end
 
       context 'listed as a channel name', order: :defined do
-        bot = OnyxCord::Commands::CommandBot.new(token: 'token', help_available: false)
+        bot = OnyxCord::Commands::Bot.new(token: 'token', help_available: false)
 
         bot.command :name do
           SIMPLE_RESPONSE
@@ -348,7 +348,7 @@ describe OnyxCord::Commands::CommandBot, order: :defined do
       end
 
       context 'listed as an object', order: :defined do
-        bot = OnyxCord::Commands::CommandBot.new(token: 'token', help_available: false)
+        bot = OnyxCord::Commands::Bot.new(token: 'token', help_available: false)
 
         bot.command :name do
           SIMPLE_RESPONSE
@@ -376,8 +376,8 @@ describe OnyxCord::Commands::CommandBot, order: :defined do
         end
       end
 
-      context 'command_bot#channels=', order: :defined do
-        bot = OnyxCord::Commands::CommandBot.new(token: 'token', help_available: false, channels: [TEST_CHANNELS[0], TEST_CHANNELS[1]])
+      context 'commands bot #channels=', order: :defined do
+        bot = OnyxCord::Commands::Bot.new(token: 'token', help_available: false, channels: [TEST_CHANNELS[0], TEST_CHANNELS[1]])
 
         bot.command :name do
           SIMPLE_RESPONSE

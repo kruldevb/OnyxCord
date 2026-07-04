@@ -29,6 +29,10 @@ Simple to start, deep enough to control.
 - Webhooks with embeds, files, and components.
 - Runtime helpers, rate limiting, and event execution designed for modern OnyxCord bots.
 
+### Breaking layout note
+
+OnyxCord now uses the reorganized domain layout. REST routes live under `onyxcord/rest/*`, models live under `onyxcord/models/*`, gateway internals live under `onyxcord/gateway/*`, and core runtime helpers live under `onyxcord/core/*`. Old direct require paths such as `onyxcord/api` and `onyxcord/data/message` are intentionally removed.
+
 ### Installation
 
 With Bundler:

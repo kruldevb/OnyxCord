@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 require 'onyxcord/webhooks/embeds'
-require 'onyxcord/message_components'
+require 'onyxcord/utils/message_components'
 
 module OnyxCord::Webhooks
   # A class that acts as a builder for a webhook message object.

@@ -2,27 +2,9 @@
 
 require 'base64'
 require 'mime/types'
-require 'onyxcord/json'
-require 'onyxcord/http'
-require 'onyxcord/version'
-require 'onyxcord/configuration'
-require 'onyxcord/event_executor'
-require 'onyxcord/message_components'
-require 'onyxcord/message_payload'
-require 'onyxcord/upload'
-require 'onyxcord/webhooks'
-require 'onyxcord/bot'
-require 'onyxcord/commands/command_bot'
-require 'onyxcord/logger'
-
-# Optional OnyxProfiler integration
-begin
-  require 'onyxcord/profiler'
-  # Auto-configure OnyxProfiler if config file exists
-  OnyxCord::Profiler.configure if File.exist?(OnyxCord::Profiler.config_path || File.join(Dir.pwd, 'onyxprofiler.config'))
-rescue LoadError
-  # OnyxProfiler not available, skip integration
-end
+require 'zeitwerk'
+require_relative 'onyxcord/core/version'
+require_relative 'onyxcord/core/logger'
 
 # All onyxcord functionality, to be extended by other files
 module OnyxCord
@@ -116,39 +98,36 @@ module OnyxCord
   # @param msg [String] The message to split.
   # @return [Array<String>] the message split into chunks
   def self.split_message(msg)
-    # If the messages is empty, return an empty array
     return [] if msg.empty?
 
-    # Split the message into lines
-    lines = msg.lines
+    chunks = []
+    current = +''
 
-    # Turn the message into a "triangle" of consecutively longer slices, for example the array [1,2,3,4] would become
-    # [
-    #  [1],
-    #  [1, 2],
-    #  [1, 2, 3],
-    #  [1, 2, 3, 4]
-    # ]
-    tri = (0...lines.length).map { |i| lines.combination(i + 1).first }
+    msg.lines.each do |line|
+      if line.length > CHARACTER_LIMIT
+        chunks << current unless current.empty?
+        current = +''
+        rest = line
+        until rest.empty?
+          break chunks << rest if rest.length <= CHARACTER_LIMIT
 
-    # Join the individual elements together to get an array of strings with consecutively more lines
-    joined = tri.map(&:join)
+          chunk = rest[0, CHARACTER_LIMIT]
+          split_at = chunk.rindex(' ')
+          split_at = split_at ? split_at + 1 : CHARACTER_LIMIT
+          chunks << rest[0, split_at]
+          rest = rest[split_at..]
+        end
+      elsif current.length + line.length <= CHARACTER_LIMIT
+        current << line
+      else
+        chunks << current
+        current = line.dup
+      end
+    end
 
-    # Find the largest element that is still below the character limit, or if none such element exists return the first
-    ideal = joined.max_by { |e| e.length > CHARACTER_LIMIT ? -1 : e.length }
-
-    # If it's still larger than the character limit (none was smaller than it) split it into the largest chunk without
-    # cutting words apart, breaking on the nearest space within character limit, otherwise just return an array with one element
-    ideal_ary = ideal.length > CHARACTER_LIMIT ? ideal.split(/(.{1,#{CHARACTER_LIMIT}}\b|.{1,#{CHARACTER_LIMIT}})/o).reject(&:empty?) : [ideal]
-
-    # Slice off the ideal part and strip newlines
-    rest = msg[ideal.length..].strip
-
-    # If none remains, return an empty array -> we're done
-    return [] unless rest
-
-    # Otherwise, call the method recursively to split the rest of the string and add it onto the ideal array
-    ideal_ary + split_message(rest)
+    chunks << current unless current.empty?
+    chunks[-1] = chunks[-1].delete_suffix("\n") if chunks[-1]
+    chunks
   end
 
   # @param time [Time, Integer] The time to create the timestamp from, or a unix timestamp integer.
@@ -194,3 +173,79 @@ class String
     to_i
   end
 end
+
+# Zeitwerk setup. Files with legacy public constants are ignored and loaded by
+# their aggregators below; renaming every public class is a separate breaking cut.
+loader = Zeitwerk::Loader.for_gem
+loader.tag = 'onyxcord'
+loader.push_dir("#{__dir__}/onyxcord", namespace: OnyxCord)
+
+loader.ignore(
+  "#{__dir__}/onyxcord/core/version.rb",
+  "#{__dir__}/onyxcord/core/logger.rb",
+  "#{__dir__}/onyxcord/internal",
+  "#{__dir__}/onyxcord/utils",
+  "#{__dir__}/onyxcord/models.rb",
+  "#{__dir__}/onyxcord/models",
+  "#{__dir__}/onyxcord/events",
+  "#{__dir__}/onyxcord/rest",
+  "#{__dir__}/onyxcord/webhooks.rb",
+  "#{__dir__}/onyxcord/webhooks",
+  "#{__dir__}/onyxcord/voice",
+  "#{__dir__}/onyxcord/interactions/internal",
+  "#{__dir__}/onyxcord/application_commands.rb",
+  "#{__dir__}/onyxcord/application_commands",
+  "#{__dir__}/onyxcord/interactions",
+  "#{__dir__}/onyxcord/cache",
+  "#{__dir__}/onyxcord/gateway",
+  "#{__dir__}/onyxcord/container.rb",
+  "#{__dir__}/onyxcord/bot.rb",
+  "#{__dir__}/onyxcord/commands"
+)
+
+loader.setup
+
+%w[
+  internal/json
+  internal/http
+  internal/async_runtime
+  internal/event_executor
+  internal/message_payload
+  internal/upload
+  internal/websocket
+  internal/gateway/opcodes
+  internal/gateway/session
+  internal/rate_limiter/rest
+  internal/rate_limiter/async_rest
+  internal/rate_limiter/gateway
+  core/errors
+  core/configuration
+  utils/id_object
+  utils/permissions
+  utils/allowed_mentions
+  utils/colour_rgb
+  utils/paginator
+  utils/message_components
+  rest/client
+  rest/routes/channel
+  rest/routes/server
+  rest/routes/invite
+  rest/routes/user
+  rest/routes/webhook
+  rest/routes/interaction
+  rest/routes/application
+  models
+  cache/manager
+  await
+  container
+  internal/event_bus
+  gateway/client
+  application_commands
+  interactions/registry
+  voice/client
+  webhooks
+  bot
+  commands/bot
+].each { |path| require_relative "onyxcord/#{path}" }
+
+loader.eager_load if ENV['ONYXCORD_EAGER_LOAD']

@@ -1,8 +1,8 @@
 # frozen_string_literal: true
 
-require 'onyxcord/api'
-require 'onyxcord/api/invite'
-require 'onyxcord/api/user'
+require 'onyxcord/rest/client'
+require 'onyxcord/rest/routes/invite'
+require 'onyxcord/rest/routes/user'
 require 'onyxcord/light/data'
 require 'onyxcord/light/integrations'
 
@@ -31,13 +31,13 @@ module OnyxCord::Light
 
     # @return [LightProfile] the details of the user this bot is connected to.
     def profile
-      response = OnyxCord::API::User.profile(@token)
+      response = OnyxCord::REST::User.profile(@token)
       LightProfile.new(JSON.parse(response), self)
     end
 
     # @return [Array<LightServer>] the servers this bot is connected to.
     def servers
-      response = OnyxCord::API::User.servers(@token)
+      response = OnyxCord::REST::User.servers(@token)
       JSON.parse(response).map { |e| LightServer.new(e, self) }
     end
 
@@ -45,13 +45,13 @@ module OnyxCord::Light
     # @param code [String] The code part of the invite (for example 0cDvIgU2voWn4BaD if the invite URL is
     #   https://discord.gg/0cDvIgU2voWn4BaD)
     def join(code)
-      OnyxCord::API::Invite.accept(@token, code)
+      OnyxCord::REST::Invite.accept(@token, code)
     end
 
     # Gets the connections associated with this account.
     # @return [Array<Connection>] this account's connections.
     def connections
-      response = OnyxCord::API::User.connections(@token)
+      response = OnyxCord::REST::User.connections(@token)
       JSON.parse(response).map { |e| Connection.new(e, self) }
     end
   end

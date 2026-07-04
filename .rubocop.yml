@@ -122,7 +122,7 @@ Style/SafeNavigation:
   Enabled: false
 
 Style/Documentation:
-  Enabled: true
+  Enabled: false
 
 Style/IfUnlessModifier:
   Exclude:
