@@ -29,4 +29,14 @@ describe OnyxCord::Gateway::Client do
 
     expect(session).not_to be_invalid
   end
+
+  it 'tracks latency from heartbeat ACKs' do
+    allow(Process).to receive(:clock_gettime).with(Process::CLOCK_MONOTONIC).and_return(10.0, 10.042)
+    allow(gateway).to receive(:send_packet)
+
+    gateway.send_heartbeat(1)
+    gateway.__send__(:handle_heartbeat_ack, 'op' => 11)
+
+    expect(gateway.latency).to be_within(0.001).of(0.042)
+  end
 end

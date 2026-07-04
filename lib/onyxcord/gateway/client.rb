@@ -17,7 +17,7 @@ module OnyxCord
       FATAL_CLOSE_CODES = [4003, 4004, 4011, 4014].freeze
 
       attr_accessor :check_heartbeat_acks
-      attr_reader :intents
+      attr_reader :intents, :latency
 
       def initialize(bot, token, shard_key = nil, compress_mode = :stream, intents = ALL_INTENTS)
         @token = token
@@ -108,6 +108,7 @@ module OnyxCord
       end
 
       def send_heartbeat(sequence)
+        @last_heartbeat_sent_at = Process.clock_gettime(Process::CLOCK_MONOTONIC)
         send_packet(Internal::Gateway::Opcodes::HEARTBEAT, sequence)
       end
 
@@ -402,6 +403,7 @@ module OnyxCord
         LOGGER.debug("Heartbeat ACK: #{packet.inspect}")
         return unless @check_heartbeat_acks
 
+        @latency = Process.clock_gettime(Process::CLOCK_MONOTONIC) - @last_heartbeat_sent_at if @last_heartbeat_sent_at
         @last_heartbeat_acked = true
         @missed_heartbeat_acks = 0
       end

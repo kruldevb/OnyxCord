@@ -42,6 +42,12 @@ describe OnyxCord::Bot do
     expect { described_class.new(token: nil) }.to raise_error('Token string is empty or nil')
   end
 
+  it 'exposes gateway latency' do
+    allow(bot.gateway).to receive(:latency).and_return(0.038)
+
+    expect(bot.latency).to eq(0.038)
+  end
+
   describe '#parse_mentions' do
     it 'parses user mentions' do
       user_a = double(:user_a)

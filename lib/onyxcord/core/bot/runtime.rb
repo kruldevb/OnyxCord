@@ -45,6 +45,10 @@ module OnyxCord
         @gateway.open?
       end
 
+      def latency
+        @gateway.latency
+      end
+
       # Sets debug mode. If debug mode is on, many things will be outputted to STDOUT.
       def debug=(new_debug)
         LOGGER.debug = new_debug

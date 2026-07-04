@@ -1,5 +1,18 @@
 # Changelog
 
+## 3.2.4 - 2026-07-04
+
+### Correções
+
+- Reintroduz `Modal#row` para compatibilidade com modais legacy que usam action rows com `text_input` ou `file_upload`.
+
+## 3.2.3 - 2026-07-04
+
+### Correções
+
+- Expõe `Bot#latency` com base no ACK do heartbeat do Gateway.
+- Registra a latência do Gateway em `Gateway::Client#latency`.
+
 ## 3.2.0 - 2026-07-03
 
 ### Novas features — Application Commands

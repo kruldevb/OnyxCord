@@ -39,9 +39,53 @@ class OnyxCord::Webhooks::Modal
     @components << LabelBuilder.new(...)
   end
 
+  # Add a legacy action row to the modal.
+  def row(id: nil)
+    @components << LegacyRowBuilder.new(id: id) { |row| yield row }
+  end
+
   # Add a text display component to the view.
   # @see Webhooks::View::TextDisplayBuilder#initialize
   def text_display(...)
     @components << OnyxCord::Webhooks::View::TextDisplayBuilder.new(...)
+  end
+
+  class LegacyRowBuilder
+    def initialize(id: nil)
+      @id = id
+      @components = []
+
+      yield self if block_given?
+    end
+
+    def text_input(style:, custom_id:, id: nil, min_length: nil, max_length: nil, required: nil, value: nil, placeholder: nil, label: nil)
+      @components << {
+        type: COMPONENT_TYPES[:text_input],
+        custom_id: custom_id,
+        id: id,
+        label: label,
+        style: LabelBuilder::TEXT_INPUT_STYLES[style] || style,
+        min_length: min_length,
+        max_length: max_length,
+        required: required,
+        value: value,
+        placeholder: placeholder
+      }.compact
+    end
+
+    def file_upload(custom_id:, id: nil, min_values: nil, max_values: nil, required: nil)
+      @components << {
+        type: COMPONENT_TYPES[:file_upload],
+        custom_id: custom_id,
+        id: id,
+        min_values: min_values,
+        max_values: max_values,
+        required: required
+      }.compact
+    end
+
+    def to_h
+      { type: COMPONENT_TYPES[:action_row], id: @id, components: @components }.compact
+    end
   end
 end

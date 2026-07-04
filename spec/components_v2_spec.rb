@@ -190,6 +190,32 @@ describe 'Components V2 support' do
   end
 
   describe OnyxCord::Webhooks::Modal do
+    it 'builds legacy modal rows with text inputs' do
+      modal = described_class.new do |m|
+        m.row do |row|
+          row.text_input(custom_id: 'interval_minutes', label: 'Intervalo em minutos', style: 1, value: '60', required: true)
+        end
+      end
+
+      expect(modal.to_a).to eq(
+        [
+          {
+            type: 1,
+            components: [
+              {
+                type: 4,
+                custom_id: 'interval_minutes',
+                label: 'Intervalo em minutos',
+                style: 1,
+                required: true,
+                value: '60'
+              }
+            ]
+          }
+        ]
+      )
+    end
+
     it 'builds modal labels with selects, text display, file upload, radio groups, checkbox groups, and checkboxes' do
       modal = described_class.new do |m|
         m.label(id: 1, label: 'Favorite bug', description: 'Choose one') do |label|
