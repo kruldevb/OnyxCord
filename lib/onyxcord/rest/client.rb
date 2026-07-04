@@ -172,6 +172,7 @@ module OnyxCord::REST
           retries += 1
           raise unless retries < max_retries
 
+          ::OnyxCord::Internal::HTTP.reset!
           OnyxCord::LOGGER.warn("Temporary HTTP failure while sending request (#{e.class}), retrying")
           OnyxCord::Internal::AsyncRuntime.sleep(retries * 0.5)
           next

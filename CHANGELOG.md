@@ -1,5 +1,13 @@
 # Changelog
 
+## 3.2.7 - 2026-07-04
+
+### Correções
+
+- Reutiliza uma única sessão HTTPX persistente em todo o processo, em vez de manter uma sessão por thread.
+- Limita o pool HTTP para reduzir risco de `Errno::EMFILE` em bots com muitos envios paralelos.
+- Fecha a sessão HTTP antes de recriar o cliente após falhas temporárias de rede.
+
 ## 3.2.5 - 2026-07-04
 
 ### Correções

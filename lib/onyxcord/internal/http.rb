@@ -54,19 +54,36 @@ module OnyxCord
 
       module_function
 
-      # The shared HTTPX session with persistent connections for the current thread.
+      POOL_OPTIONS = {
+        max_connections: 50,
+        max_connections_per_origin: 20,
+        pool_timeout: 10
+      }.freeze
+
+      # The shared HTTPX session with persistent, pooled connections.
       def session
-        Thread.current[:onyxcord_http_session] ||= HTTPX.plugin(:persistent)
-                                                        .plugin(:follow_redirects)
-                                                        .with(
-                                                          fallback_protocol: 'http/1.1',
-                                                          ssl: { alpn_protocols: ['http/1.1'] }
-                                                        )
+        session_mutex.synchronize do
+          @session ||= HTTPX.plugin(:persistent)
+                            .plugin(:follow_redirects)
+                            .with(
+                              fallback_protocol: 'http/1.1',
+                              ssl: { alpn_protocols: ['http/1.1'] },
+                              pool_options: POOL_OPTIONS
+                            )
+        end
       end
 
       # Reset the HTTP session (useful for tests).
       def reset!
-        Thread.current[:onyxcord_http_session] = nil
+        session_mutex.synchronize do
+          @session&.close if @session.respond_to?(:close)
+        ensure
+          @session = nil
+        end
+      end
+
+      def session_mutex
+        @session_mutex ||= Mutex.new
       end
 
       # Perform a raw HTTP request and return a {Response}.
