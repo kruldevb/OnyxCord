@@ -685,41 +685,48 @@ module OnyxCord::REST
     default_client.team_icon_url(team_id, icon_id, format)
   end
 
-  # Legacy module-level convenience methods (deprecated)
+  # Get the bot's current application info.
+  #
+  # A rota atual é GET /applications/@me, não /oauth2/applications/@me.
+  # Retorna a aplicação pertencente ao token autenticado, incluindo o {id}.
+  def current_application(token)
+    default_client.request(
+      :applications_me, nil, :get, "#{api_base}/applications/@me",
+      headers: { Authorization: token }
+    )
+  end
+
+  # @deprecated Use {current_application} — o nome `oauth_application` é mantido
+  #   apenas para compatibilidade com código antigo.
+  alias_method :oauth_application, :current_application
+
   # @deprecated Please use {Client#update_oauth_application} or create a client instance.
   def update_oauth_application(token, name, redirect_uris, description = '', icon = nil)
     default_client.request(
       :oauth2_applications, nil, :put, "#{api_base}/oauth2/applications",
       body: { name: name, redirect_uris: redirect_uris, description: description, icon: icon }.to_json,
-      headers: { Authorization: "Bot #{token}", content_type: :json }
-    )
-  end
-
-  def oauth_application(token)
-    default_client.request(
-      :oauth2_applications_me, nil, :get, "#{api_base}/applications/@me",
-      headers: { Authorization: "Bot #{token}" }
+      headers: { Authorization: token, content_type: :json }
     )
   end
 
   def gateway(token)
     default_client.request(
       :gateway, nil, :get, "#{api_base}/gateway",
-      headers: { Authorization: "Bot #{token}" }
+      headers: { Authorization: token }
     )
   end
 
   def gateway_bot(token)
     default_client.request(
       :gateway_bot, nil, :get, "#{api_base}/gateway/bot",
-      headers: { Authorization: "Bot #{token}" }
+      headers: { Authorization: token }
     )
   end
 
   def voice_regions(token)
     default_client.request(
       :voice_regions, nil, :get, "#{api_base}/voice/regions",
-      headers: { Authorization: "Bot #{token}", content_type: :json }
+      headers: { Authorization: token, content_type: :json }
     )
   end
 end

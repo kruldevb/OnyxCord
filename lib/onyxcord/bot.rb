@@ -255,20 +255,27 @@ module OnyxCord
     # The bot's OAuth application.
     # @return [Application] The bot's application info.
     def bot_application
-      response = REST.oauth_application(token)
-      Application.new(JSON.parse(response), self)
+      response = REST.current_application(token)
+      Application.new(OnyxCord::Internal::JSON.parse(response), self)
     end
 
     alias_method :bot_app, :bot_application
     alias_method :application, :bot_application
 
+    # Resolve (and cache) the application ID associated with this bot.
+    # @return [Integer] The application ID.
+    #   Uses `@client_id` when explicitly informed during construction or
+    #   resolved from the READY payload; otherwise fetches via `GET /applications/@me`.
+    def application_id
+      @client_id ||= bot_application.id
+    end
+
     # Get the role connection metadata records associated with this application.
     # @return [Array<RoleConnectionMetadata>] the role connection metadata records associated with this application.
     # @raise [RuntimeError] if the application ID cannot be determined.
     def role_connection_metadata_records
-      app_id = @client_id || resolve_application_id!
-      response = REST::Application.get_application_role_connection_metadata_records(@token, app_id)
-      JSON.parse(response).map { |role_connection| RoleConnectionMetadata.new(role_connection, self) }
+      response = REST::Application.get_application_role_connection_metadata_records(token, application_id)
+      OnyxCord::Internal::JSON.parse(response).map { |role_connection| RoleConnectionMetadata.new(role_connection, self) }
     end
 
     # The Discord API token received when logging in. Useful to explicitly call
@@ -285,10 +292,11 @@ module OnyxCord
     end
 
     # @!visibility private
+    # @deprecated Use {application_id} instead — this method is kept
+    #   only for backward compatibility and will delegate.
     def resolve_application_id!
-      response = REST.oauth_application(token)
-      data = JSON.parse(response)
-      @client_id = data["id"]
+      application_id
+      @client_id
     end
 
     # @!visibility private
