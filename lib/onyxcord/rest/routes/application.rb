@@ -232,7 +232,7 @@ module OnyxCord::REST::Application
       application_id,
       :get,
       "#{OnyxCord::REST.api_base}/applications/#{application_id}/emojis",
-      headers: { Authorization: token }
+      headers: { Authorization: "Bot #{token}" }
     )
   end
 
@@ -244,7 +244,7 @@ module OnyxCord::REST::Application
       application_id,
       :get,
       "#{OnyxCord::REST.api_base}/applications/#{application_id}/emojis/#{emoji_id}",
-      headers: { Authorization: token }
+      headers: { Authorization: "Bot #{token}" }
     )
   end
 
@@ -257,7 +257,7 @@ module OnyxCord::REST::Application
       :post,
       "#{OnyxCord::REST.api_base}/applications/#{application_id}/emojis",
       body: { name: name, image: image }.to_json,
-      headers: { Authorization: token, content_type: :json }
+      headers: { Authorization: "Bot #{token}", content_type: :json }
     )
   end
 
@@ -270,7 +270,7 @@ module OnyxCord::REST::Application
       :patch,
       "#{OnyxCord::REST.api_base}/applications/#{application_id}/emojis/#{emoji_id}",
       body: { name: name }.to_json,
-      headers: { Authorization: token, content_type: :json }
+      headers: { Authorization: "Bot #{token}", content_type: :json }
     )
   end
 
@@ -282,7 +282,7 @@ module OnyxCord::REST::Application
       application_id,
       :delete,
       "#{OnyxCord::REST.api_base}/applications/#{application_id}/emojis/#{emoji_id}",
-      headers: { Authorization: token }
+      headers: { Authorization: "Bot #{token}" }
     )
   end
 
@@ -295,7 +295,7 @@ module OnyxCord::REST::Application
       :patch,
       "#{OnyxCord::REST.api_base}/applications/@me",
       body: { custom_install_url:, description:, role_connections_verification_url:, install_params:, integration_types_config:, flags:, interactions_endpoint_url:, tags:, event_webhooks_url:, event_webhooks_status:, event_webhooks_types:, icon:, cover_image: }.reject { |_, value| value == :undef }.to_json,
-      headers: { Authorization: token, content_type: :json }
+      headers: { Authorization: "Bot #{token}", content_type: :json }
     )
   end
 
@@ -307,7 +307,7 @@ module OnyxCord::REST::Application
       nil,
       :get,
       "#{OnyxCord::REST.api_base}/applications/#{application_id}/role-connections/metadata",
-      headers: { Authorization: token }
+      headers: { Authorization: "Bot #{token}" }
     )
   end
 
@@ -320,7 +320,7 @@ module OnyxCord::REST::Application
       :put,
       "#{OnyxCord::REST.api_base}/applications/#{application_id}/role-connections/metadata",
       body: metadata.to_json,
-      headers: { Authorization: token, content_type: :json }
+      headers: { Authorization: "Bot #{token}", content_type: :json }
     )
   end
 end

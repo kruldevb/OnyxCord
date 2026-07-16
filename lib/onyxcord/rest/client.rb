@@ -691,35 +691,35 @@ module OnyxCord::REST
     default_client.request(
       :oauth2_applications, nil, :put, "#{api_base}/oauth2/applications",
       body: { name: name, redirect_uris: redirect_uris, description: description, icon: icon }.to_json,
-      headers: { Authorization: token, content_type: :json }
+      headers: { Authorization: "Bot #{token}", content_type: :json }
     )
   end
 
   def oauth_application(token)
     default_client.request(
       :oauth2_applications_me, nil, :get, "#{api_base}/applications/@me",
-      headers: { Authorization: token }
+      headers: { Authorization: "Bot #{token}" }
     )
   end
 
   def gateway(token)
     default_client.request(
       :gateway, nil, :get, "#{api_base}/gateway",
-      headers: { Authorization: token }
+      headers: { Authorization: "Bot #{token}" }
     )
   end
 
   def gateway_bot(token)
     default_client.request(
       :gateway_bot, nil, :get, "#{api_base}/gateway/bot",
-      headers: { Authorization: token }
+      headers: { Authorization: "Bot #{token}" }
     )
   end
 
   def voice_regions(token)
     default_client.request(
       :voice_regions, nil, :get, "#{api_base}/voice/regions",
-      headers: { Authorization: token, content_type: :json }
+      headers: { Authorization: "Bot #{token}", content_type: :json }
     )
   end
 end
