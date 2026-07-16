@@ -38,8 +38,8 @@ module OnyxCord::REST::Interaction
       interaction_id,
       :post,
       "#{OnyxCord::REST.api_base}/interactions/#{interaction_id}/#{interaction_token}/callback?with_response=#{with_response ? 'true' : 'false'}",
-      body,
-      headers
+      body: body,
+      headers: headers || {}
     )
   end
 
@@ -53,8 +53,8 @@ module OnyxCord::REST::Interaction
       interaction_id,
       :post,
       "#{OnyxCord::REST.api_base}/interactions/#{interaction_id}/#{interaction_token}/callback",
-      { type: 9, data: data }.to_json,
-      content_type: :json
+      body: { type: 9, data: data }.to_json,
+      headers: { content_type: :json }
     )
   end
 end

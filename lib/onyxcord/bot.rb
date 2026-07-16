@@ -48,6 +48,9 @@ module OnyxCord
     # @return [Internal::EventExecutor::Inline, Internal::EventExecutor::Pool, Internal::EventExecutor::AsyncPool]
     attr_reader :event_executor
 
+    # @return [Logger] the per-bot logger instance.
+    attr_reader :logger
+
     include EventContainer
     include Cache
     include Internal::EventBus
@@ -116,8 +119,9 @@ module OnyxCord
       executor_workers = config.normalize_event_workers(event_workers)
       executor_queue_size = config.normalize_event_queue_size(event_queue_size)
 
-      LOGGER.mode = log_mode
-      LOGGER.token = token if redact_token
+      @logger = OnyxCord::Logger.new(fancy_log)
+      @logger.mode = log_mode
+      @logger.token = token if redact_token
 
       @should_parse_self = parse_self
 
@@ -125,10 +129,17 @@ module OnyxCord
 
       @type = type || :bot
       @name = name
+      @redact_token = redact_token
+      REST.bot_name = @name
 
-      @shard_key = num_shards ? [shard_id, num_shards] : nil
+      @shard_key = if num_shards
+        raise ArgumentError, "shard_id must be provided when num_shards is given" unless shard_id
+        raise ArgumentError, "shard_id must be between 0 and num_shards - 1" unless shard_id.between?(0, num_shards - 1)
 
-      LOGGER.fancy = fancy_log
+        [shard_id, num_shards]
+      end
+
+      @logger.fancy = fancy_log
       @prevent_ready = suppress_ready
 
       @compress_mode = compress_mode
@@ -154,7 +165,11 @@ module OnyxCord
       init_cache
 
       @voices = {}
+      @voices_mutex = Mutex.new
       @should_connect_to_voice = {}
+      @should_connect_voice_mutex = Mutex.new
+      @session_id = nil
+      @session_id_mutex = Mutex.new
 
       @ignored_ids = Set.new
       @ignore_bots = ignore_bots
@@ -167,7 +182,6 @@ module OnyxCord
       @status = :online
 
       @application_commands = {}
-      @request_members_rl = {}
     end
 
     # The list of users the bot shares a server with.
@@ -203,16 +217,14 @@ module OnyxCord
     #   @return [Array<Emoji>] the emoji available.
     def emoji(id = nil)
       if (id = id&.resolve_id)
-        @servers.each_value do |server|
+        @servers&.each_value do |server|
           emoji = server.emojis[id]
           return emoji if emoji
         end
+        nil
       else
         hash = {}
-        @servers.each_value do |server|
-          hash.merge!(server.emojis)
-        end
-
+        @servers&.each_value { |server| hash.merge!(server.emojis) }
         hash
       end
     end
@@ -224,7 +236,7 @@ module OnyxCord
     # @param name [String] The emoji name that should be resolved.
     # @return [GlobalEmoji, nil] the emoji identified by the name, or `nil` if it couldn't be found.
     def find_emoji(name)
-      LOGGER.out("Resolving emoji #{name}")
+      @logger.out("Resolving emoji #{name}")
       emoji.find { |element| element.name == name }
     end
 
@@ -252,16 +264,17 @@ module OnyxCord
 
     # Get the role connection metadata records associated with this application.
     # @return [Array<RoleConnectionMetadata>] the role connection metadata records associated with this application.
+    # @raise [RuntimeError] if the application ID cannot be determined.
     def role_connection_metadata_records
-      response = REST::Application.get_application_role_connection_metadata_records(@bot.token, @id)
-      JSON.parse(response).map { |role_connection| RoleConnectionMetadata.new(role_connection, @bot) }
+      app_id = @client_id || resolve_application_id!
+      response = REST::Application.get_application_role_connection_metadata_records(@token, app_id)
+      JSON.parse(response).map { |role_connection| RoleConnectionMetadata.new(role_connection, self) }
     end
 
     # The Discord API token received when logging in. Useful to explicitly call
     # {API} methods.
     # @return [String] The API token.
     def token
-      REST.bot_name = @name
       @token
     end
 
@@ -269,6 +282,13 @@ module OnyxCord
     # @see #token
     def raw_token
       @token.split(' ').last
+    end
+
+    # @!visibility private
+    def resolve_application_id!
+      response = REST.oauth_application(token)
+      data = JSON.parse(response)
+      @client_id = data["id"]
     end
 
     # @!visibility private

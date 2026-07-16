@@ -7,7 +7,7 @@ describe OnyxCord::Webhook do
   let(:reason) { double('reason') }
   let(:server) { double('server', member: double) }
   let(:channel) { double('channel', server: server) }
-  let(:bot) { double('bot', channel: channel, token: token) }
+  let(:bot) { double('bot', channel: channel, token: token, logger: double('logger')) }
 
   subject(:webhook) do
     described_class.new(webhook_data, bot)
@@ -62,7 +62,8 @@ describe OnyxCord::Webhook do
       context 'when owner not cached' do
         let(:server) { double('server', member: nil) }
         let(:user) { double('user') }
-        let(:bot) { double('bot', channel: channel, ensure_user: user) }
+        let(:bot_logger) { double('logger', debug: nil) }
+        let(:bot) { double('bot', channel: channel, ensure_user: user, logger: bot_logger) }
 
         it 'gets user' do
           expect(webhook.owner).to eq user
@@ -107,18 +108,18 @@ describe OnyxCord::Webhook do
   end
 
   describe '#delete' do
-    context 'when webhook is from auth' do
-      it 'calls the API' do
-        expect(OnyxCord::REST::Webhook).to receive(:delete_webhook).with(token, webhook_id, reason)
+    context 'when webhook has a token' do
+      it 'calls the token API' do
+        expect(OnyxCord::REST::Webhook).to receive(:token_delete_webhook).with(webhook_token, webhook_id, reason)
         webhook.delete(reason)
       end
     end
 
-    context 'when webhook is from token' do
-      before { webhook.instance_variable_set(:@owner, nil) }
+    context 'when webhook does not have a token' do
+      before { webhook.instance_variable_set(:@token, nil) }
 
-      it 'calls the token API' do
-        expect(OnyxCord::REST::Webhook).to receive(:token_delete_webhook).with(webhook_token, webhook_id, reason)
+      it 'calls the auth API' do
+        expect(OnyxCord::REST::Webhook).to receive(:delete_webhook).with(token, webhook_id, reason)
         webhook.delete(reason)
       end
     end
@@ -149,16 +150,16 @@ describe OnyxCord::Webhook do
   end
 
   describe '#token?' do
-    context 'when webhook is from auth' do
-      it 'returns false' do
-        expect(webhook.token?).to eq false
+    context 'when webhook has a token' do
+      it 'returns true' do
+        expect(webhook.token?).to eq true
       end
     end
 
-    context 'when webhook is from token' do
-      before { webhook.instance_variable_set(:@owner, nil) }
-      it 'returns true' do
-        expect(webhook.token?).to eq true
+    context 'when webhook does not have a token' do
+      before { webhook.instance_variable_set(:@token, nil) }
+      it 'returns false' do
+        expect(webhook.token?).to eq false
       end
     end
   end
@@ -207,7 +208,7 @@ describe OnyxCord::Webhook do
         webhook
         data = double('data', :[] => double)
         allow(JSON).to receive(:parse).and_return(data)
-        allow(OnyxCord::REST::Webhook).to receive(:update_webhook)
+        allow(OnyxCord::REST::Webhook).to receive(:token_update_webhook)
         expect(webhook).to receive(:update_internal).with(data)
         webhook.send(:update_webhook, double('data', delete: reason))
       end
@@ -218,29 +219,29 @@ describe OnyxCord::Webhook do
         webhook
         data = double('data', :[] => nil)
         allow(JSON).to receive(:parse).and_return(data)
-        allow(OnyxCord::REST::Webhook).to receive(:update_webhook)
+        allow(OnyxCord::REST::Webhook).to receive(:token_update_webhook)
         expect(webhook).to_not receive(:update_internal)
         webhook.send(:update_webhook, double('data', delete: reason))
       end
     end
 
-    context 'when webhook is from auth' do
+    context 'when webhook has a token' do
+      it 'calls token API' do
+        data = double('data', delete: reason)
+        allow(JSON).to receive(:parse).and_return(double('received_data', :[] => double))
+        expect(OnyxCord::REST::Webhook).to receive(:token_update_webhook).with(webhook_token, webhook_id, data, reason)
+        webhook.send(:update_webhook, data)
+      end
+    end
+
+    context 'when webhook does not have a token' do
+      before { webhook.instance_variable_set(:@token, nil) }
+
       it 'calls auth API' do
         webhook
         data = double('data', delete: reason)
         allow(JSON).to receive(:parse).and_return(double('received_data', :[] => double))
         expect(OnyxCord::REST::Webhook).to receive(:update_webhook).with(token, webhook_id, data, reason)
-        webhook.send(:update_webhook, data)
-      end
-    end
-
-    context 'when webhook is from token' do
-      before { webhook.instance_variable_set(:@owner, nil) }
-
-      it 'calls token API' do
-        data = double('data', delete: reason)
-        allow(JSON).to receive(:parse).and_return(double('received_data', :[] => double))
-        expect(OnyxCord::REST::Webhook).to receive(:token_update_webhook).with(webhook_token, webhook_id, data, reason)
         webhook.send(:update_webhook, data)
       end
     end

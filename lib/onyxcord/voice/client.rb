@@ -11,8 +11,8 @@ module OnyxCord::Voice
   # How long one voice packet should ideally be (20ms as defined by Discord)
   IDEAL_LENGTH = 20.0
 
-  # How many bytes of data to read (1920 bytes * 2 channels) from audio PCM data
-  DATA_LENGTH = 1920 * 2
+  # How many bytes of data to read from audio PCM data (960 samples * 2 channels * 2 bytes)
+  DATA_LENGTH = Encoder::FRAME_BYTES
 
   # This class represents a connection to a Discord voice server and channel. It can be used to play audio files and
   # streams and to control playback on currently playing tracks. The method {Bot#voice_connect} can be used to connect
@@ -35,72 +35,45 @@ module OnyxCord::Voice
     # @return [Encoder] the encoder used to encode audio files into the format required by Discord.
     attr_reader :encoder
 
-    # onyxcord will occasionally measure the time it takes to send a packet, and adjust future delay times based
-    # on that data. This makes voice playback more smooth, because if packets are sent too slowly, the audio will
-    # sound patchy, and if they're sent too quickly, packets will "pile up" and occasionally skip some data or
-    # play parts back too fast. How often these measurements should be done depends a lot on the system, and if it's
-    # done too quickly, especially on slow connections, the playback speed will vary wildly; if it's done too slowly
-    # however, small errors will cause quality problems for a longer time.
-    # @return [Integer] how frequently audio length adjustments should be done, in ideal packets (20ms).
-    attr_accessor :adjust_interval
-
-    # This particular value is also important because ffmpeg may take longer to process the first few packets. It is
-    # recommended to set this to 10 at maximum, otherwise it will take too long to make the first adjustment, but it
-    # shouldn't be any higher than {#adjust_interval}, otherwise no adjustments will take place. If {#adjust_interval}
-    # is at a value higher than 10, this value should not be changed at all.
-    # @see #adjust_interval
-    # @return [Integer] the packet number (1 packet = 20ms) at which length adjustments should start.
-    attr_accessor :adjust_offset
-
-    # This value determines whether or not the adjustment length should be averaged with the previous value. This may
-    # be useful on slower connections where latencies vary a lot. In general, it will make adjustments more smooth,
-    # but whether that is desired behaviour should be tried on a case-by-case basis.
-    # @see #adjust_interval
-    # @return [true, false] whether adjustment lengths should be averaged with the respective previous value.
-    attr_accessor :adjust_average
-
-    # Disable the debug message for length adjustment specifically, as it can get quite spammy with very low intervals
-    # @see #adjust_interval
-    # @return [true, false] whether length adjustment debug messages should be printed
-    attr_accessor :adjust_debug
-
-    # If this value is set, no length adjustments will ever be done and this value will always be used as the length
-    # (i.e. packets will be sent every N seconds). Be careful not to set it too low as to not spam Discord's servers.
-    # The ideal length is 20ms (accessible by the {OnyxCord::Voice::IDEAL_LENGTH} constant), this value should be
-    # slightly lower than that because encoding + sending takes time. Note that sending DCA files is significantly
-    # faster than sending regular audio files (usually about four times as fast), so you might want to set this value
-    # to something else if you're sending a DCA file.
-    # @return [Float] the packet length that should be used instead of calculating it during the adjustments, in ms.
-    attr_accessor :length_override
-
     # The factor the audio's volume should be multiplied with. `1` is no change in volume, `0` is completely silent,
     # `0.5` is half the default volume and `2` is twice the default.
     # @return [Float] the volume for audio playback, `1.0` by default.
-    attr_accessor :volume
+    # @raise [ArgumentError] if value is not a valid volume multiplier
+    def volume=(value)
+      raise ArgumentError, 'Volume must be a numeric value' unless value.is_a?(Numeric)
+      raise ArgumentError, 'Volume cannot be NaN or Infinity' if value.nan? || value.infinite?
+      raise ArgumentError, 'Volume must be non-negative' if value.negative?
+
+      @volume = value
+    end
+
+    attr_reader :volume
 
     # @!visibility private
     def initialize(channel, bot, token, session, endpoint)
       @bot = bot
       @channel = channel
 
-      @ws = VoiceWS.new(channel, bot, token, session, endpoint)
-      @udp = @ws.udp
-
       @sequence = @time = 0
       @skips = 0
-
-      @adjust_interval = 100
-      @adjust_offset = 10
-      @adjust_average = false
-      @adjust_debug = true
+      @adjust_debug = false
 
       @volume = 1.0
       @playing = false
+      @stop_queue = Thread::Queue.new
+      @playback_mutex = Mutex.new
 
+      # Create encoder first (no IO, can fail cheaply)
       @encoder = Encoder.new
+
+      # Create WebSocket (opens UDP socket)
+      @ws = VoiceWS.new(channel, bot, token, session, endpoint)
+      @udp = @ws.udp
+
       @ws.connect
     rescue StandardError => e
-      OnyxCord::LOGGER.log_exception(e)
+      @ws&.destroy
+      @bot.logger.log_exception(e)
       raise
     end
 
@@ -142,35 +115,54 @@ module OnyxCord::Voice
       @paused = false
     end
 
+    # Maximum number of frames to skip (5 minutes worth)
+    MAX_SKIP_FRAMES = 15_000
+
     # Skips to a later time in the song. It's impossible to go back without replaying the song.
     # @param secs [Float] How many seconds to skip forwards. Skipping will always be done in discrete intervals of
     #   0.05 seconds, so if the given amount is smaller than that, it will be rounded up.
+    # @raise [ArgumentError] if secs is negative, NaN, Infinity, or would exceed max skip
     def skip(secs)
-      @skips += (secs * (1000 / IDEAL_LENGTH)).ceil
+      raise ArgumentError, 'Skip value must be numeric' unless secs.is_a?(Numeric)
+      raise ArgumentError, 'Skip value cannot be NaN or Infinity' if secs.nan? || secs.infinite?
+      raise ArgumentError, 'Skip value must be non-negative' if secs.negative?
+
+      frames = (secs * (1000 / IDEAL_LENGTH)).ceil
+      raise ArgumentError, "Skip exceeds maximum (#{MAX_SKIP_FRAMES} frames)" if @skips + frames > MAX_SKIP_FRAMES
+
+      @skips += frames
     end
 
     # Sets whether or not the bot is speaking (green circle around user).
     # @param value [true, false, Integer] whether or not the bot should be speaking, or a bitmask denoting the audio type
     # @note https://discord.com/developers/docs/topics/voice-connections#speaking for information on the speaking bitmask
     def speaking=(value)
-      @playing = value
+      @speaking = value
       @ws.send_speaking(value)
     end
 
     # Stops the current playback entirely.
     # @param wait_for_confirmation [true, false] Whether the method should wait for confirmation from the playback
     #   method that the playback has actually stopped.
-    def stop_playing(wait_for_confirmation = false)
+    # @param timeout [Numeric] Maximum seconds to wait for confirmation (default 10)
+    def stop_playing(wait_for_confirmation = false, timeout: 10)
       @was_playing_before = @playing
-      @speaking = false
       @playing = false
-      sleep IDEAL_LENGTH / 1000.0 if @was_playing_before
+
+      if @was_playing_before
+        # Let play_internal handle its own cleanup (silence frames + Speaking 0)
+        sleep IDEAL_LENGTH / 1000.0
+      elsif @speaking
+        # External stop: send silence frames + Speaking 0 ourselves
+        send_silence_frames
+      end
 
       return unless wait_for_confirmation
 
-      @has_stopped_playing = false
-      sleep IDEAL_LENGTH / 1000.0 until @has_stopped_playing
-      @has_stopped_playing = false
+      # Drain any stale signals, then block for the real one
+      @stop_queue.clear
+      result = @stop_queue.pop(timeout: timeout)
+      raise 'Voice playback stop timed out' if result.nil?
     end
 
     # Permanently disconnects from the voice channel; to reconnect you will have to call {Bot#voice_connect} again.
@@ -186,58 +178,49 @@ module OnyxCord::Voice
     # methods in separate threads.
     # @param encoded_io [IO] A stream of raw PCM data (s16le)
     def play(encoded_io)
-      stop_playing(true) if @playing
-      @retry_attempts = 3
-      @first_packet = true
+      @playback_mutex.synchronize do
+        stop_playing(true) if @playing
+        @first_packet = true
+        pcm_buffer = ''.b
 
-      play_internal do
-        buf = nil
+        play_internal do
+        # Accumulate partial reads until we have a full frame
+        while pcm_buffer.bytesize < DATA_LENGTH
+          begin
+            chunk = encoded_io.readpartial(DATA_LENGTH - pcm_buffer.bytesize)
+            pcm_buffer << chunk
+          rescue EOFError, IOError => e
+            if @first_packet && pcm_buffer.empty?
+              raise IOError, 'File or stream not found!'
+            end
 
-        # Read some data from the buffer
-        begin
-          buf = encoded_io.readpartial(DATA_LENGTH) if encoded_io
-        rescue EOFError
-          raise IOError, 'File or stream not found!' if @first_packet
+            @bot.debug("EOF reached with #{pcm_buffer.bytesize} bytes remaining")
+            # Pad incomplete final frame with silence
+            pcm_buffer << "\0".b * (DATA_LENGTH - pcm_buffer.bytesize) unless pcm_buffer.empty?
+            break
+          end
+        end
 
-          @bot.debug('EOF while reading, breaking immediately')
+        if pcm_buffer.empty?
+          @bot.debug('No more data to read')
           next :stop
         end
 
-        # Check whether the buffer has enough data
-        if !buf || buf.length != DATA_LENGTH
-          @bot.debug("No data is available! Retrying #{@retry_attempts} more times")
-          next :stop if @retry_attempts.zero?
+        buf = pcm_buffer.byteslice(0, DATA_LENGTH)
+        pcm_buffer = pcm_buffer.byteslice(DATA_LENGTH..)
 
-          @retry_attempts -= 1
-          next
-        end
+        @first_packet = false
 
         # Adjust volume
         buf = @encoder.adjust_volume(buf, @volume) if @volume != 1.0 # rubocop:disable Lint/FloatComparison
 
-        @first_packet = false
-
         # Encode data
         @encoder.encode(buf)
       end
-
-      # If the stream is a process, kill it
-      if encoded_io&.pid
-        OnyxCord::LOGGER.debug("Killing ffmpeg process with pid #{encoded_io.pid.inspect}")
-
-        begin
-          pid = encoded_io.pid
-          # Windows does not support TERM as a kill signal, so we use KILL. `Process.waitpid` verifies that our
-          # child process has not already completed.
-          Process.kill(Gem.win_platform? ? 'KILL' : 'TERM', pid) if Process.waitpid(pid, Process::WNOHANG).nil?
-        rescue StandardError => e
-          OnyxCord::LOGGER.warn('Failed to kill ffmpeg process! You *might* have a process leak now.')
-          OnyxCord::LOGGER.warn("Reason: #{e}")
-        end
       end
-
-      # Close the stream
-      encoded_io.close
+    ensure
+      kill_ffmpeg(encoded_io) if encoded_io&.pid
+      encoded_io&.close unless encoded_io&.closed?
     end
 
     # Plays an encoded audio file of arbitrary format to the channel.
@@ -261,23 +244,35 @@ module OnyxCord::Voice
     #   re-encoding it, which defeats its entire purpose (no recoding).
     # @see https://github.com/bwmarrin/dca
     # @see #play
+    # Maximum allowed DCA metadata size (1 MB)
+    MAX_DCA_METADATA_SIZE = 1_048_576
+    # Maximum allowed DCA frame size (1 MB)
+    MAX_DCA_FRAME_SIZE = 1_048_576
+
     def play_dca(file)
-      stop_playing(true) if @playing
+      @playback_mutex.synchronize do
+        stop_playing(true) if @playing
 
-      @bot.debug "Reading DCA file #{file}"
+        @bot.debug "Reading DCA file #{file}"
 
-      File.open(file) do |input_stream|
+        File.open(file, 'rb') do |input_stream|
         magic = input_stream.read(4)
         raise ArgumentError, 'Not a DCA1 file! The file might have been corrupted, please recreate it.' unless magic == 'DCA1'
 
-        # Read the metadata header, then read the metadata and discard it as we don't care about it
-        metadata_header = input_stream.read(4).unpack1('l<')
-        input_stream.read(metadata_header)
+        # Read the metadata header, then read the metadata and discard it
+        metadata_header_bytes = input_stream.read(4)
+        raise ArgumentError, 'DCA file truncated at metadata header' unless metadata_header_bytes&.bytesize == 4
+
+        metadata_size = metadata_header_bytes.unpack1('l<')
+        raise ArgumentError, "DCA metadata too large: #{metadata_size} bytes" if metadata_size.negative? || metadata_size > MAX_DCA_METADATA_SIZE
+
+        metadata = input_stream.read(metadata_size)
+        raise ArgumentError, 'DCA file truncated at metadata' unless metadata&.bytesize == metadata_size
 
         # Play the data, without re-encoding it to opus
         play_internal do
           begin
-            # Read header
+            # Read frame header (2 bytes, little-endian signed int = frame size)
             header_str = input_stream.read(2)
 
             unless header_str
@@ -285,17 +280,27 @@ module OnyxCord::Voice
               next :stop
             end
 
+            raise ArgumentError, 'DCA file truncated at frame header' unless header_str.bytesize == 2
+
             header = header_str.unpack1('s<')
 
-            raise 'Negative header in DCA file! Your file is likely corrupted.' if header.negative?
+            raise ArgumentError, 'Negative header in DCA file! Your file is likely corrupted.' if header.negative?
+            raise ArgumentError, "DCA frame too large: #{header} bytes" if header > MAX_DCA_FRAME_SIZE
           rescue EOFError
             @bot.debug 'Finished DCA parsing (EOFError)'
             next :stop
           end
 
-          # Read bytes
-          input_stream.read(header)
+          # Read the frame data
+          frame = input_stream.read(header)
+          unless frame&.bytesize == header
+            @bot.debug "DCA frame truncated: expected #{header} bytes, got #{frame&.bytesize || 0}"
+            next :stop
+          end
+
+          frame
         end
+      end
       end
     end
 
@@ -343,10 +348,9 @@ module OnyxCord::Voice
         # Track intermediate adjustment so we can measure how much encoding contributes to the total time
         intermediate_adjust = Process.clock_gettime(Process::CLOCK_MONOTONIC, :millisecond)
 
-        Process.clock_gettime(Process::CLOCK_MONOTONIC, :millisecond)
-
-        if (last_sent + IDEAL_LENGTH) > Process.clock_gettime(Process::CLOCK_MONOTONIC, :millisecond)
-          sleep_duration = (last_sent + IDEAL_LENGTH - Process.clock_gettime(Process::CLOCK_MONOTONIC, :millisecond)) / 1000.0
+        now = Process.clock_gettime(Process::CLOCK_MONOTONIC, :millisecond)
+        if (last_sent + IDEAL_LENGTH) > now
+          sleep_duration = (last_sent + IDEAL_LENGTH - now) / 1000.0
           @bot.debug("Waiting for next frame: #{sleep_duration * 1000}ms (encoding #{intermediate_adjust - start_time}ms)") if @adjust_debug
           sleep sleep_duration if sleep_duration.positive?
         end
@@ -359,29 +363,72 @@ module OnyxCord::Voice
         last_sent = Process.clock_gettime(Process::CLOCK_MONOTONIC, :millisecond)
       end
 
+      send_silence_frames
+
+      @bot.debug('Performing final cleanup after stream ended')
+
+      # Final clean-up: reset state and notify waiters
+      @speaking = false
+      @playing = false
+      @stop_queue.push(:done)
+    end
+
+    # Sends 5 silence frames to clear Discord's audio buffer, then sends Speaking 0.
+    # Idempotent: safe to call multiple times.
+    def send_silence_frames
+      return unless @speaking
+
       @bot.debug('Sending five silent frames to clear out buffers')
 
       5.times do
         increment_packet_headers
         @udp.send_audio(Encoder::OPUS_SILENCE, @sequence, @time)
-
-        # Length adjustments don't matter here, we can just wait 20ms since nobody is going to hear it anyway
         sleep IDEAL_LENGTH / 1000.0
       end
 
-      @bot.debug('Performing final cleanup after stream ended')
-
-      # Final clean-up
-      stop_playing
-
-      # Notify any stop_playing methods running right now that we have actually stopped
-      @has_stopped_playing = true
+      self.speaking = false
     end
 
-    # Increment sequence and time
+    # Sends SIGTERM to ffmpeg, waits up to 2 seconds, then SIGKILL as last resort.
+    # Always calls waitpid to avoid zombie processes.
+    def kill_ffmpeg(io)
+      pid = io.pid
+      @bot.logger.debug("Killing ffmpeg process with pid #{pid}")
+
+      unless Process.waitpid(pid, Process::WNOHANG).nil?
+        @bot.logger.debug("ffmpeg process #{pid} already exited")
+        return
+      end
+
+      # Try TERM first (works on Unix; Windows uses KILL directly)
+      signal = Gem.win_platform? ? 'KILL' : 'TERM'
+      Process.kill(signal, pid)
+
+      # Wait up to 2 seconds for graceful shutdown
+      unless signal == 'KILL'
+        deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + 2.0
+        while Process.waitpid(pid, Process::WNOHANG).nil?
+          break if Process.clock_gettime(Process::CLOCK_MONOTONIC) >= deadline
+          sleep 0.05
+        end
+
+        # Escalate to KILL if still alive
+        if Process.waitpid(pid, Process::WNOHANG).nil?
+          @bot.logger.warn("ffmpeg #{pid} did not exit after TERM, sending KILL")
+          Process.kill('KILL', pid)
+        end
+      end
+
+      # Reap the zombie
+      Process.waitpid(pid) rescue nil
+    rescue StandardError => e
+      @bot.logger.warn("Failed to kill ffmpeg process #{pid}: #{e}")
+    end
+
+    # Increment sequence (16-bit) and time (32-bit) with proper wrapping
     def increment_packet_headers
-      @sequence + 10 < 65_535 ? @sequence += 1 : @sequence = 0
-      @time + 9600 < 4_294_967_295 ? @time += 960 : @time = 0
+      @sequence = (@sequence + 1) & 0xFFFF
+      @time = (@time + 960) & 0xFFFFFFFF
     end
   end
 end

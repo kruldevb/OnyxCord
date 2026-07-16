@@ -3,6 +3,36 @@
 module OnyxCord
   class Bot
     module Messaging
+      # A handle for a temporary message that can be cancelled.
+      class TemporaryMessage
+        attr_reader :message
+
+        def initialize(message, thread)
+          @message = message
+          @thread = thread
+          @cancelled = false
+          @mutex = Mutex.new
+        end
+
+        # Cancel the pending deletion, keeping the message.
+        # @return [true, false] whether cancellation succeeded (false if already deleted or cancelled).
+        def cancel
+          @mutex.synchronize do
+            return false if @cancelled
+
+            @cancelled = true
+            @thread&.kill
+            true
+          end
+        end
+
+        # Whether the deletion has been cancelled.
+        # @return [true, false]
+        def cancelled?
+          @mutex.synchronize { @cancelled }
+        end
+      end
+
       # Sends a text message to a channel given its ID and the message's content.
       # @param channel [Channel, String, Integer] The channel, or its ID, to send something to.
       # @param content [String] The text that should be sent as a message. It is limited to 2000 characters (Discord imposed).
@@ -30,6 +60,7 @@ module OnyxCord
 
       # Sends a text message to a channel given its ID and the message's content,
       # then deletes it after the specified timeout in seconds.
+      # Returns a {TemporaryMessage} handle that can be used to cancel the deletion.
       # @param channel [Channel, String, Integer] The channel, or its ID, to send something to.
       # @param content [String] The text that should be sent as a message. It is limited to 2000 characters (Discord imposed).
       # @param timeout [Float] The amount of time in seconds after which the message sent will be deleted.
@@ -43,14 +74,19 @@ module OnyxCord
       # @param nonce [String, nil] A optional nonce in order to verify that a message was sent. Maximum of twenty-five characters.
       # @param enforce_nonce [true, false] Whether the nonce should be enforced and used for message de-duplication.
       # @param poll [Hash, Poll::Builder, Poll, nil] The poll that should be attached to this message.
+      # @return [TemporaryMessage] A handle that can be used to cancel the deletion.
       def send_temporary_message(channel, content, timeout, tts = false, embeds = nil, attachments = nil, allowed_mentions = nil, message_reference = nil, components = nil, flags = 0, nonce = nil, enforce_nonce = false, poll = nil)
-        Internal::AsyncRuntime.async do
-          message = send_message(channel, content, tts, embeds, attachments, allowed_mentions, message_reference, components, flags, nonce, enforce_nonce, poll)
+        message = send_message(channel, content, tts, embeds, attachments, allowed_mentions, message_reference, components, flags, nonce, enforce_nonce, poll)
+
+        thread = Thread.new do
+          Thread.current[:onyxcord_name] = "tmp-msg-#{message.id}"
           Internal::AsyncRuntime.sleep(timeout)
           message.delete
+        rescue StandardError => e
+          log_exception(e)
         end
 
-        nil
+        TemporaryMessage.new(message, thread)
       end
 
       # Sends a file to a channel. If it is an image, it will automatically be embedded.
@@ -78,35 +114,43 @@ module OnyxCord
         Message.new(JSON.parse(response), self)
       end
 
-      # Gets the users, channels, roles and emoji from a string.
+# Gets the users, channels, roles and emoji from a string.
       # @param mentions [String] The mentions, which should look like `<@12314873129>`, `<#123456789>`, `<@&123456789>` or `<:name:126328:>`.
-      # @param server [Server, nil] The server of the associated mentions. (recommended for role parsing, to speed things up)
-      # @return [Array<User, Channel, Role, Emoji>] The array of users, channels, roles and emoji identified by the mentions, or `nil` if none exists.
+      # @param server [Server, nil] The server of the associated mentions.
+      # @return [Array<User, Channel, Role, Emoji>]
       def parse_mentions(mentions, server = nil)
+        return [] unless mentions.is_a?(String)
+
         array_to_return = []
-        # While possible mentions may be in message
+        seen = { user: Set.new, channel: Set.new, role: Set.new, emoji: Set.new }
+
         while mentions.include?('<') && mentions.include?('>')
-          # Removing all content before the next possible mention
           mentions = mentions.split('<', 2)[1]
-          # Locate the first valid mention enclosed in `<...>`, otherwise advance to the next open `<`
           next unless mentions.split('>', 2).first.length < mentions.split('<', 2).first.length
 
-          # Store the possible mention value to be validated with RegEx
           mention = mentions.split('>', 2).first
           if /@!?(?<id>\d+)/ =~ mention
+            next if seen[:user].include?(id)
+            seen[:user].add(id)
             array_to_return << user(id) unless user(id).nil?
           elsif /#(?<id>\d+)/ =~ mention
+            next if seen[:channel].include?(id)
+            seen[:channel].add(id)
             array_to_return << channel(id, server) unless channel(id, server).nil?
           elsif /@&(?<id>\d+)/ =~ mention
+            next if seen[:role].include?(id)
+            seen[:role].add(id)
             if server
               array_to_return << server.role(id) unless server.role(id).nil?
             else
-              @servers.each_value do |element|
+              @servers&.each_value do |element|
                 array_to_return << element.role(id) unless element.role(id).nil?
               end
             end
-          elsif /(?<animated>^a|^${0}):(?<name>\w+):(?<id>\d+)/ =~ mention
-            array_to_return << (emoji(id) || Emoji.new({ 'animated' => animated != '', 'name' => name, 'id' => id }, self, nil))
+          elsif /\A(?<animated>a)?:(?<name>\w+):(?<id>\d+)\z/ =~ mention
+            next if seen[:emoji].include?(id)
+            seen[:emoji].add(id)
+            array_to_return << (emoji(id) || Emoji.new({ 'animated' => !animated.nil?, 'name' => name, 'id' => id }, self, nil))
           end
         end
         array_to_return
@@ -114,8 +158,8 @@ module OnyxCord
 
       # Gets the user, channel, role or emoji from a string.
       # @param mention [String] The mention, which should look like `<@12314873129>`, `<#123456789>`, `<@&123456789>` or `<:name:126328:>`.
-      # @param server [Server, nil] The server of the associated mention. (recommended for role parsing, to speed things up)
-      # @return [User, Channel, Role, Emoji] The user, channel, role or emoji identified by the mention, or `nil` if none exists.
+      # @param server [Server, nil] The server of the associated mentions.
+      # @return [User, Channel, Role, Emoji]
       def parse_mention(mention, server = nil)
         parse_mentions(mention, server).first
       end

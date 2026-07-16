@@ -3,6 +3,7 @@
 require 'base64'
 require 'mime/types'
 require 'zeitwerk'
+require_relative 'onyxcord/core/bootstrap'
 require_relative 'onyxcord/core/version'
 require_relative 'onyxcord/core/logger'
 
@@ -14,7 +15,8 @@ module OnyxCord
   LOGGER = Logger.new(ENV.fetch('ONYXCORD_FANCY_LOG', false))
 
   # The Unix timestamp Discord IDs are based on
-  DISCORD_EPOCH = 1_420_070_400_000
+  # (Defined in {OnyxCord::bootstrap}; kept here for YARD visibility.)
+  # DISCORD_EPOCH is defined in core/bootstrap.rb.
 
   # Used to declare what events you wish to recieve from Discord.
   # @see https://discord.com/developers/docs/topics/gateway#gateway-intents
@@ -36,6 +38,9 @@ module OnyxCord
     direct_message_typing: 1 << 14,
     message_content: 1 << 15,
     server_scheduled_events: 1 << 16,
+    server_moderation: 1 << 17,
+    auto_moderation_configuration: 1 << 20,
+    auto_moderation_execution: 1 << 21,
     server_message_polls: 1 << 24,
     direct_message_polls: 1 << 25
   }.freeze
@@ -43,7 +48,7 @@ module OnyxCord
   INTENT_ALIASES = {
     guilds: :servers,
     guild_members: :server_members,
-    guild_bans: :server_bans,
+    guild_moderation: :server_moderation,
     guild_emojis: :server_emojis,
     guild_integrations: :server_integrations,
     guild_webhooks: :server_webhooks,
@@ -54,7 +59,8 @@ module OnyxCord
     guild_message_reactions: :server_message_reactions,
     guild_message_typing: :server_message_typing,
     guild_scheduled_events: :server_scheduled_events,
-    guild_message_polls: :server_message_polls
+    guild_message_polls: :server_message_polls,
+    guild_bans: :server_bans
   }.freeze
 
   MINIMAL_INTENTS = INTENTS.values_at(:servers, :server_messages, :direct_messages).reduce(&:|)
@@ -70,9 +76,8 @@ module OnyxCord
   NO_INTENTS = 0
 
   # Compares two objects based on IDs - either the objects' IDs are equal, or one object is equal to the other's ID.
-  def self.id_compare?(one_id, other)
-    other.respond_to?(:resolve_id) ? (one_id.resolve_id == other.resolve_id) : (one_id == other)
-  end
+  # (Defined in core/bootstrap.rb; re-aliased here for backwards compatibility.)
+  # @!visibility private
 
   # @deprecated Please use {OnyxCord.id_compare?}
   singleton_class.alias_method :id_compare, :id_compare?
@@ -154,7 +159,7 @@ module OnyxCord
     raise ArgumentError, 'File object must respond to read.' unless file.respond_to?(:read)
 
     mime_type = MIME::Types.type_for(file.__send__(path_method)).first&.to_s || 'image/jpeg'
-    "data:#{mime_type};base64,#{Base64.encode64(file.read).strip}"
+    "data:#{mime_type};base64,#{Base64.strict_encode64(file.read)}"
   end
 end
 
@@ -193,14 +198,16 @@ loader.ignore(
   "#{__dir__}/onyxcord/webhooks",
   "#{__dir__}/onyxcord/voice",
   "#{__dir__}/onyxcord/interactions/internal",
+  "#{__dir__}/onyxcord/interactions",
   "#{__dir__}/onyxcord/application_commands.rb",
   "#{__dir__}/onyxcord/application_commands",
-  "#{__dir__}/onyxcord/interactions",
   "#{__dir__}/onyxcord/cache",
   "#{__dir__}/onyxcord/gateway",
   "#{__dir__}/onyxcord/container.rb",
   "#{__dir__}/onyxcord/bot.rb",
-  "#{__dir__}/onyxcord/commands"
+  "#{__dir__}/onyxcord/commands",
+  "#{__dir__}/onyxcord/light.rb",
+  "#{__dir__}/onyxcord/light"
 )
 
 loader.setup
@@ -245,6 +252,7 @@ loader.setup
   voice/client
   webhooks
   bot
+  light
   commands/bot
 ].each { |path| require_relative "onyxcord/#{path}" }
 

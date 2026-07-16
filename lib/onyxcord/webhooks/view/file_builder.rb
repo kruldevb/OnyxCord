@@ -3,14 +3,16 @@
 class OnyxCord::Webhooks::View
   class FileBuilder
     # Create a file component.
-    # @param url [String] An `attachment://<filename>` reference to the attached file.
+    #
+    # @param url [String] An +attachment://filename+ reference to the
+    #   attached file.
     # @param id [Integer, nil] The unique 32-bit ID of the file component.
-    # @param spoiler [true, false] Whether or not to apply a spoiler label to the file.
+    # @param spoiler [true, false] Whether to apply a spoiler label.
     def initialize(url = nil, id: nil, spoiler: false, **kwargs)
       url = kwargs.fetch(:url, url)
 
       @id = id
-      @file = { url: }
+      @file = { url: url }
       @spoiler = spoiler
     end
 
@@ -19,6 +21,4 @@ class OnyxCord::Webhooks::View
       { type: COMPONENT_TYPES[:file], id: @id, spoiler: @spoiler, file: @file }.compact
     end
   end
-
-  # A media gallery component is a gallery grid.
 end

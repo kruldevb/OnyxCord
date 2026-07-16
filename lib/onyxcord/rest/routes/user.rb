@@ -12,7 +12,7 @@ module OnyxCord::REST::User
       nil,
       :get,
       "#{OnyxCord::REST.api_base}/users/#{user_id}",
-      Authorization: token
+      headers: { Authorization: token }
     )
   end
 
@@ -24,7 +24,7 @@ module OnyxCord::REST::User
       nil,
       :get,
       "#{OnyxCord::REST.api_base}/users/@me",
-      Authorization: token
+      headers: { Authorization: token }
     )
   end
 
@@ -36,10 +36,8 @@ module OnyxCord::REST::User
       server_id, # This is technically a guild endpoint
       :patch,
       "#{OnyxCord::REST.api_base}/guilds/#{server_id}/members/@me/nick",
-      { nick: nick }.to_json,
-      Authorization: token,
-      content_type: :json,
-      'X-Audit-Log-Reason': reason
+      body: { nick: nick }.to_json,
+      headers: { Authorization: token, content_type: :json, 'X-Audit-Log-Reason': reason }
     )
   end
 
@@ -57,22 +55,57 @@ module OnyxCord::REST::User
       nil,
       :patch,
       "#{OnyxCord::REST.api_base}/users/@me",
-      { username: username, avatar: avatar, banner: banner }.reject { |_, value| value == :undef }.to_json,
-      Authorization: token,
-      content_type: :json
+      body: { username: username, avatar: avatar, banner: banner }.reject { |_, value| value == :undef }.to_json,
+      headers: { Authorization: token, content_type: :json }
     )
   end
 
-  # Get the servers a user is connected to
+  # Get the servers a user is connected to (single page)
   # https://discord.com/developers/docs/resources/user#get-current-user-guilds
-  def servers(token)
+  # @param limit [Integer, nil] max number of guilds per page (1-200, default 200)
+  # @param before [String, Integer, nil] guild ID to get results before
+  # @param after [String, Integer, nil] guild ID to get results after
+  # @param with_counts [Boolean, nil] include approximate member and presence counts
+  # @return [Array<Hash>] list of guild objects
+  def servers(token, limit: nil, before: nil, after: nil, with_counts: nil)
+    query = URI.encode_www_form({ limit: limit, before: before, after: after, with_counts: with_counts }.compact)
     OnyxCord::REST.request(
       :users_me_guilds,
       nil,
       :get,
-      "#{OnyxCord::REST.api_base}/users/@me/guilds",
-      Authorization: token
+      "#{OnyxCord::REST.api_base}/users/@me/guilds#{"?#{query}" unless query.empty?}",
+      headers: { Authorization: token }
     )
+  end
+
+  # Enumerate all servers a user is connected to, automatically handling pagination.
+  # Yields each guild page and optionally accumulates all results.
+  # @param token [String] the bot token
+  # @param max_items [Integer, nil] stop after fetching this many guilds (nil = all)
+  # @param with_counts [Boolean, nil] include approximate member and presence counts
+  # @param page_size [Integer] number of guilds per request (1-200, default 200)
+  # @yield [Array<Hash>] each page of guild objects
+  # @return [Array<Hash>] all guilds if no block given, otherwise the last page
+  def enumerate_servers(token, max_items: nil, with_counts: nil, page_size: 200)
+    collected = []
+    after_id = nil
+    remaining = max_items
+
+    loop do
+      page_limit = remaining ? [remaining, page_size].min : page_size
+      page = servers(token, limit: page_limit, after: after_id, with_counts: with_counts)
+
+      yield page if block_given?
+      collected.concat(page)
+
+      break if page.empty?
+      break if remaining && (remaining -= page.size) <= 0
+
+      after_id = page.last['id']
+      break if page.size < page_limit
+    end
+
+    block_given? ? collected.last : collected
   end
 
   # Leave a server
@@ -83,19 +116,28 @@ module OnyxCord::REST::User
       nil,
       :delete,
       "#{OnyxCord::REST.api_base}/users/@me/guilds/#{server_id}",
-      Authorization: token
+      headers: { Authorization: token }
     )
   end
 
-  # Get the DMs for the current user
+  # Get the DM channels for the current user.
   # https://discord.com/developers/docs/resources/user#get-user-dms
+  #
+  # For bots, this returns DM channels the bot currently has open.
+  # Most bot workflows should use {create_pm} to create a DM channel
+  # with a specific user, then use the returned channel ID for messaging.
+  #
+  # @note This endpoint requires the `relationships.read` OAuth2 scope for user tokens.
+  #   For bot tokens, it returns DMs the bot has already opened.
+  # @param token [String] the bot or user OAuth2 token
+  # @return [Array<Hash>] list of DM channel objects
   def user_dms(token)
     OnyxCord::REST.request(
       :users_me_channels,
       nil,
       :get,
       "#{OnyxCord::REST.api_base}/users/@me/channels",
-      Authorization: token
+      headers: { Authorization: token }
     )
   end
 
@@ -107,9 +149,8 @@ module OnyxCord::REST::User
       nil,
       :post,
       "#{OnyxCord::REST.api_base}/users/@me/channels",
-      { recipient_id: recipient_id }.to_json,
-      Authorization: token,
-      content_type: :json
+      body: { recipient_id: recipient_id }.to_json,
+      headers: { Authorization: token, content_type: :json }
     )
   end
 
@@ -121,7 +162,7 @@ module OnyxCord::REST::User
       nil,
       :get,
       "#{OnyxCord::REST.api_base}/users/@me/connections",
-      Authorization: token
+      headers: { Authorization: token }
     )
   end
 
@@ -138,7 +179,7 @@ module OnyxCord::REST::User
 
   # Make an avatar URL from the user and avatar IDs
   def avatar_url(user_id, avatar_id, format = nil)
-    format ||= if avatar_id.start_with?('a_')
+    format ||= if avatar_id&.start_with?('a_')
                  'gif'
                else
                  'webp'
@@ -148,7 +189,7 @@ module OnyxCord::REST::User
 
   # Make a banner URL from the user and banner IDs
   def banner_url(user_id, banner_id, format = nil)
-    format ||= if banner_id.start_with?('a_')
+    format ||= if banner_id&.start_with?('a_')
                  'gif'
                else
                  'png'

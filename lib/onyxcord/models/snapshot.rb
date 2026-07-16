@@ -73,7 +73,8 @@ module OnyxCord
 
       return @role_mentions if @role_mentions
 
-      roles = @bot.servers.values.flat_map(&:roles)
+      roles = []
+      @bot.servers&.each_value { |s| roles.concat(s.roles) }
 
       @role_mentions = @mention_roles.filter_map { |id| roles.find { |r| r.id == id } }
     end

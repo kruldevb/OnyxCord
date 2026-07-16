@@ -16,16 +16,24 @@ module OnyxCord
       #   this. If you need a way to safely run code after the bot is fully
       #   connected, use a {#ready} event handler instead.
       def run(background = false)
+        raise "Bot is already running" if @running
+
+        @running = true
         if background
           @run_task = Internal::AsyncRuntime.async { run_forever }
           return @run_task
         end
 
         Internal::AsyncRuntime.run { run_forever }
+      ensure
+        @running = false
       end
 
       def run_forever
         @gateway.run
+      rescue StandardError => e
+        @logger&.log_exception(e)
+        raise
       end
 
       def join
@@ -34,6 +42,10 @@ module OnyxCord
       alias_method :sync, :join
 
       def stop(_no_sync = nil)
+        return if @stopped
+
+        @stopped = true
+        destroy_all_voices if respond_to?(:destroy_all_voices)
         @gateway.stop
         @event_executor.shutdown
         @run_task&.stop if @run_task.respond_to?(:stop)
@@ -51,13 +63,13 @@ module OnyxCord
 
       # Sets debug mode. If debug mode is on, many things will be outputted to STDOUT.
       def debug=(new_debug)
-        LOGGER.debug = new_debug
+        @logger.debug = new_debug
       end
 
       # Sets the logging mode
       # @see Logger#mode=
       def mode=(new_mode)
-        LOGGER.mode = new_mode
+        @logger.mode = new_mode
       end
 
       def runtime_stats
@@ -88,8 +100,8 @@ module OnyxCord
         # Return unless there are servers that are unavailable.
         return unless @unavailable_servers&.positive?
 
-        LOGGER.warn("#{@unavailable_servers} servers haven't been cached yet.")
-        LOGGER.warn('Servers may be unavailable due to an outage, or your bot is on very large servers that are taking a while to load.')
+        @logger.warn("#{@unavailable_servers} servers haven't been cached yet.")
+        @logger.warn('Servers may be unavailable due to an outage, or your bot is on very large servers that are taking a while to load.')
       end
 
       def process_token(type, token)
@@ -109,7 +121,7 @@ module OnyxCord
 
         # Make sure to raise the event
         raise_event(OnyxCord::Events::ReadyEvent.new(self))
-        LOGGER.good 'Ready'
+        @logger.good 'Ready'
 
         @gateway.notify_ready
       end
@@ -128,7 +140,8 @@ module OnyxCord
       end
 
       def call_event(handler, event)
-        @event_executor.post do
+        event_type = event_type_for(event)
+        @event_executor.post(event_type) do
           Thread.current[:onyxcord_name] = next_event_thread_name('et')
           begin
             handler.call(event)
@@ -139,18 +152,31 @@ module OnyxCord
         end
       end
 
+      def event_type_for(event)
+        name = event.class.name
+        return :typing_start if name.include?('Typing')
+        return :presence_update if name.include?('Presence')
+        return :voice_state_update if name.include?('VoiceState')
+
+        nil
+      end
+
       def handle_awaits(event)
         @awaits ||= {}
+        awaiting_deletion = []
+
         @awaits.each_value do |await|
           key, should_delete = await.match(event)
           next unless key
 
           debug("should_delete: #{should_delete}")
-          @awaits.delete(await.key) if should_delete
+          awaiting_deletion << await.key if should_delete
 
           await_event = OnyxCord::Events::AwaitEvent.new(await, event, self)
           raise_event(await_event)
         end
+
+        awaiting_deletion.each { |key| @awaits.delete(key) }
       end
 
       def calculate_intents(intents)
@@ -164,13 +190,13 @@ module OnyxCord
             if INTENTS[intent]
               sum | INTENTS[intent]
             else
-              LOGGER.warn("Unknown intent: #{intent}")
+              @logger.warn("Unknown intent: #{intent}")
               sum
             end
           when Integer
             sum | intent
           else
-            LOGGER.warn("Invalid intent: #{intent}")
+            @logger.warn("Invalid intent: #{intent}")
             sum
           end
         end

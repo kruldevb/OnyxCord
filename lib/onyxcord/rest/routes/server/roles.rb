@@ -11,7 +11,7 @@ module OnyxCord::REST::Server
       server_id,
       :get,
       "#{OnyxCord::REST.api_base}/guilds/#{server_id}/roles",
-      Authorization: token
+      headers: { Authorization: token }
     )
   end
 
@@ -23,7 +23,7 @@ module OnyxCord::REST::Server
       server_id,
       :get,
       "#{OnyxCord::REST.api_base}/guilds/#{server_id}/roles/#{role_id}",
-      Authorization: token
+      headers: { Authorization: token }
     )
   end
 
@@ -38,10 +38,8 @@ module OnyxCord::REST::Server
       server_id,
       :post,
       "#{OnyxCord::REST.api_base}/guilds/#{server_id}/roles",
-      { color: colour, name: name, hoist: hoist, mentionable: mentionable, permissions: packed_permissions, colors: colours, icon: icon, unicode_emoji: unicode_emoji }.compact.to_json,
-      Authorization: token,
-      content_type: :json,
-      'X-Audit-Log-Reason': reason
+      body: { color: colour, name: name, hoist: hoist, mentionable: mentionable, permissions: packed_permissions, colors: colours, icon: icon, unicode_emoji: unicode_emoji }.compact.to_json,
+      headers: { Authorization: token, content_type: :json, 'X-Audit-Log-Reason': reason }
     )
   end
 
@@ -65,10 +63,8 @@ module OnyxCord::REST::Server
       server_id,
       :patch,
       "#{OnyxCord::REST.api_base}/guilds/#{server_id}/roles/#{role_id}",
-      data.reject { |_, value| value == :undef }.to_json,
-      Authorization: token,
-      content_type: :json,
-      'X-Audit-Log-Reason': reason
+      body: data.reject { |_, value| value == :undef }.to_json,
+      headers: { Authorization: token, content_type: :json, 'X-Audit-Log-Reason': reason }
     )
   end
 
@@ -80,10 +76,8 @@ module OnyxCord::REST::Server
       server_id,
       :patch,
       "#{OnyxCord::REST.api_base}/guilds/#{server_id}/roles/#{role_id}",
-      { name:, permissions:, colors:, hoist:, icon:, unicode_emoji:, mentionable: }.reject { |_, value| value == :undef }.to_json,
-      content_type: :json,
-      Authorization: token,
-      'X-Audit-Log-Reason': reason
+      body: { name:, permissions:, colors:, hoist:, icon:, unicode_emoji:, mentionable: }.reject { |_, value| value == :undef }.to_json,
+      headers: { Authorization: token, content_type: :json, 'X-Audit-Log-Reason': reason }
     )
   end
 
@@ -95,10 +89,8 @@ module OnyxCord::REST::Server
       server_id,
       :patch,
       "#{OnyxCord::REST.api_base}/guilds/#{server_id}/roles",
-      roles.to_json,
-      Authorization: token,
-      content_type: :json,
-      'X-Audit-Log-Reason': reason
+      body: roles.to_json,
+      headers: { Authorization: token, content_type: :json, 'X-Audit-Log-Reason': reason }
     )
   end
 
@@ -110,8 +102,7 @@ module OnyxCord::REST::Server
       server_id,
       :delete,
       "#{OnyxCord::REST.api_base}/guilds/#{server_id}/roles/#{role_id}",
-      Authorization: token,
-      'X-Audit-Log-Reason': reason
+      headers: { Authorization: token, 'X-Audit-Log-Reason': reason }
     )
   end
 
@@ -123,9 +114,7 @@ module OnyxCord::REST::Server
       server_id,
       :put,
       "#{OnyxCord::REST.api_base}/guilds/#{server_id}/members/#{user_id}/roles/#{role_id}",
-      nil,
-      Authorization: token,
-      'X-Audit-Log-Reason': reason
+      headers: { Authorization: token, 'X-Audit-Log-Reason': reason }
     )
   end
 
@@ -137,8 +126,7 @@ module OnyxCord::REST::Server
       server_id,
       :delete,
       "#{OnyxCord::REST.api_base}/guilds/#{server_id}/members/#{user_id}/roles/#{role_id}",
-      Authorization: token,
-      'X-Audit-Log-Reason': reason
+      headers: { Authorization: token, 'X-Audit-Log-Reason': reason }
     )
   end
 
@@ -150,7 +138,7 @@ module OnyxCord::REST::Server
       server_id,
       :get,
       "#{OnyxCord::REST.api_base}/guilds/#{server_id}/roles/member-counts",
-      Authorization: token
+      headers: { Authorization: token }
     )
   end
 end

@@ -3,66 +3,91 @@
 module OnyxCord
   class Bot
     module VoiceControl
-      # @return [Hash<Integer => Client>] the voice connections this bot currently has, by the server ID to which they are connected.
+      VOICE_CONNECT_TIMEOUT = 15
+
+      # @return [Hash<Integer => Client>] the voice connections this bot currently has, by the server ID.
       attr_reader :voices
 
-      # Gets the voice bot for a particular server or channel. You can connect to a new channel using the {#voice_connect}
-      # method.
+      # Gets the voice bot for a particular server or channel.
       # @param thing [Channel, Server, Integer] the server or channel you want to get the voice bot for, or its ID.
       # @return [Voice::Client, nil] the Client for the thing you specified, or nil if there is no connection yet
       def voice(thing)
         id = thing.resolve_id
-        return @voices[id] if @voices[id]
+        result = @voices_mutex.synchronize { @voices[id] }
+        return result if result
 
         channel = channel(id)
         return nil unless channel
 
         server_id = channel.server.id
-        return @voices[server_id] if @voices[server_id]
+        @voices_mutex.synchronize { @voices[server_id] }
       end
 
-      # Connects to a voice channel, initializes network connections and returns the {Voice::Client} over which audio
-      # data can then be sent. After connecting, the bot can also be accessed using {#voice}. If the bot is already
-      # connected to voice, the existing connection will be terminated - you don't have to call
-      # {OnyxCord::Voice::Client#destroy} before calling this method.
+      # Connects to a voice channel. Destroys any existing connection for the server.
       # @param chan [Channel, String, Integer] The voice channel, or its ID, to connect to.
-      # @param encrypted [true, false] Whether voice communication should be encrypted using
-      #   (uses an XSalsa20 stream cipher for encryption and Poly1305 for authentication)
+      # @param encrypted [true, false] Whether voice communication should be encrypted.
       # @return [Voice::Client] the initialized bot over which audio data can then be sent.
+      # @raise [RuntimeError] if the connection times out
       def voice_connect(chan, encrypted = true)
         raise ArgumentError, 'Unencrypted voice connections are no longer supported.' unless encrypted
 
         chan = channel(chan.resolve_id)
         server_id = chan.server.id
 
-        if @voices[chan.id]
-          debug('Voice bot exists already! Destroying it')
-          @voices[chan.id].destroy
-          @voices.delete(chan.id)
+        # Destroy existing connection for this server (correct key: server_id, not chan.id)
+        @voices_mutex.synchronize do
+          existing = @voices[server_id]
+          if existing
+            debug('Voice bot exists already! Destroying it')
+            existing.destroy
+            @voices.delete(server_id)
+          end
         end
 
         debug("Got voice channel: #{chan}")
 
-        @should_connect_to_voice[server_id] = chan
+        @should_connect_voice_mutex.synchronize { @should_connect_to_voice[server_id] = chan }
         @gateway.send_voice_state_update(server_id.to_s, chan.id.to_s, false, false)
 
         debug('Voice channel init packet sent! Now waiting.')
 
-        Internal::AsyncRuntime.sleep(0.05) until @voices[server_id]
-        debug('Voice connect succeeded!')
-        @voices[server_id]
+        # Wait with timeout using monotonic clock
+        deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + VOICE_CONNECT_TIMEOUT
+        loop do
+          voice_client = @voices_mutex.synchronize { @voices[server_id] }
+          break voice_client if voice_client
+
+          remaining = deadline - Process.clock_gettime(Process::CLOCK_MONOTONIC)
+          if remaining <= 0
+            @should_connect_voice_mutex.synchronize { @should_connect_to_voice.delete(server_id) }
+            raise "Voice connection timed out after #{VOICE_CONNECT_TIMEOUT}s for server #{server_id}"
+          end
+
+          sleep [0.05, remaining].min
+        end
       end
 
-      # Disconnects the client from a specific voice connection given the server ID. Usually it's more convenient to use
-      # {OnyxCord::Voice::Client#destroy} rather than this.
-      # @param server [Server, String, Integer] The server, or server ID, the voice connection is on.
-      # @param destroy_vws [true, false] Whether or not the VWS should also be destroyed. If you're calling this method
-      #   directly, you should leave it as true.
+      # Disconnects the client from a specific voice connection.
+      # @param server [Server, String, Integer] The server, or server ID.
+      # @param destroy_vws [true, false] Whether or not the VWS should also be destroyed.
       def voice_destroy(server, destroy_vws = true)
         server = server.resolve_id
         @gateway.send_voice_state_update(server.to_s, nil, false, false)
-        @voices[server].destroy if @voices[server] && destroy_vws
-        @voices.delete(server)
+        @voices_mutex.synchronize do
+          @voices[server].destroy if @voices[server] && destroy_vws
+          @voices.delete(server)
+        end
+      end
+
+      # Destroys all voice connections. Called during shutdown.
+      def destroy_all_voices
+        snapshots = @voices_mutex.synchronize { @voices.values.dup }
+        snapshots.each do |client|
+          client.destroy
+        rescue StandardError => e
+          debug("Error destroying voice client: #{e.message}")
+        end
+        @voices_mutex.synchronize { @voices.clear }
       end
     end
   end

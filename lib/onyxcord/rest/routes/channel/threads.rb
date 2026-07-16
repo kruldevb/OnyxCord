@@ -11,9 +11,8 @@ module OnyxCord::REST::Channel
       channel_id,
       :post,
       "#{OnyxCord::REST.api_base}/channels/#{channel_id}/messages/#{message_id}/threads",
-      { name: name, auto_archive_duration: auto_archive_duration }.to_json,
-      Authorization: token,
-      content_type: :json
+      body: { name: name, auto_archive_duration: auto_archive_duration }.to_json,
+      headers: { Authorization: token, content_type: :json }
     )
   end
 
@@ -25,9 +24,8 @@ module OnyxCord::REST::Channel
       channel_id,
       :post,
       "#{OnyxCord::REST.api_base}/channels/#{channel_id}/threads",
-      { name: name, auto_archive_duration: auto_archive_duration, type: type },
-      Authorization: token,
-      content_type: :json
+      body: { name: name, auto_archive_duration: auto_archive_duration, type: type }.to_json,
+      headers: { Authorization: token, content_type: :json }
     )
   end
 
@@ -39,8 +37,7 @@ module OnyxCord::REST::Channel
       channel_id,
       :put,
       "#{OnyxCord::REST.api_base}/channels/#{channel_id}/thread-members/@me",
-      nil,
-      Authorization: token
+      headers: { Authorization: token }
     )
   end
 
@@ -52,8 +49,7 @@ module OnyxCord::REST::Channel
       channel_id,
       :put,
       "#{OnyxCord::REST.api_base}/channels/#{channel_id}/thread-members/#{user_id}",
-      nil,
-      Authorization: token
+      headers: { Authorization: token }
     )
   end
 
@@ -64,8 +60,8 @@ module OnyxCord::REST::Channel
       :channels_cid_thread_members_me,
       channel_id,
       :delete,
-      "#{OnyxCord::REST.api_base}/channels/#{channel_id}/thread-members/#{user_id}",
-      Authorization: token
+      "#{OnyxCord::REST.api_base}/channels/#{channel_id}/thread-members/@me",
+      headers: { Authorization: token }
     )
   end
 
@@ -77,7 +73,7 @@ module OnyxCord::REST::Channel
       channel_id,
       :delete,
       "#{OnyxCord::REST.api_base}/channels/#{channel_id}/thread-members/#{user_id}",
-      Authorization: token
+      headers: { Authorization: token }
     )
   end
 
@@ -91,7 +87,7 @@ module OnyxCord::REST::Channel
       channel_id,
       :get,
       "#{OnyxCord::REST.api_base}/channels/#{channel_id}/thread-members?#{query}",
-      Authorization: token
+      headers: { Authorization: token }
     )
   end
 
@@ -103,7 +99,7 @@ module OnyxCord::REST::Channel
       channel_id,
       :get,
       "#{OnyxCord::REST.api_base}/channels/#{channel_id}/threads/active",
-      Authorization: token
+      headers: { Authorization: token }
     )
   end
 
@@ -117,7 +113,7 @@ module OnyxCord::REST::Channel
       channel_id,
       :get,
       "#{OnyxCord::REST.api_base}/channels/#{channel_id}/threads/archived/public?#{query}",
-      Authorization: token
+      headers: { Authorization: token }
     )
   end
 
@@ -131,7 +127,7 @@ module OnyxCord::REST::Channel
       channel_id,
       :get,
       "#{OnyxCord::REST.api_base}/channels/#{channel_id}/threads/archived/private?#{query}",
-      Authorization: token
+      headers: { Authorization: token }
     )
   end
 
@@ -145,7 +141,7 @@ module OnyxCord::REST::Channel
       channel_id,
       :get,
       "#{OnyxCord::REST.api_base}/channels/#{channel_id}/users/@me/threads/archived/private?#{query}",
-      Authorization: token
+      headers: { Authorization: token }
     )
   end
 
@@ -153,12 +149,12 @@ module OnyxCord::REST::Channel
   # https://discord.com/developers/docs/resources/channel#start-thread-in-forum-or-media-channel
   def start_thread_in_forum_or_media_channel(token, channel_id, name, message, attachments = nil, rate_limit_per_user = nil, auto_archive_duration = nil, applied_tags = nil, reason = nil)
     OnyxCord::MessagePayload.validate!(attachments: attachments)
-    body = { name: name, message: message, rate_limit_per_user: rate_limit_per_user, auto_archive_duration: auto_archive_duration, applied_tags: applied_tags }.compact
+    payload = { name: name, message: message, rate_limit_per_user: rate_limit_per_user, auto_archive_duration: auto_archive_duration, applied_tags: applied_tags }.compact
 
     body = if attachments
-             multipart_body(body, attachments)
+             multipart_body(payload, attachments)
            else
-             body.to_json
+             payload.to_json
            end
 
     headers = { Authorization: token, 'X-Audit-Log-Reason': reason }
@@ -169,8 +165,8 @@ module OnyxCord::REST::Channel
       channel_id,
       :post,
       "#{OnyxCord::REST.api_base}/channels/#{channel_id}/threads",
-      body,
-      headers
+      body: body,
+      headers: headers
     )
   end
 end

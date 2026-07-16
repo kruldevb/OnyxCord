@@ -11,10 +11,8 @@ module OnyxCord::REST::Channel
       channel_id,
       :post,
       "#{OnyxCord::REST.api_base}/channels/#{channel_id}/webhooks",
-      { name: name, avatar: avatar }.to_json,
-      Authorization: token,
-      content_type: :json,
-      'X-Audit-Log-Reason': reason
+      body: { name: name, avatar: avatar }.to_json,
+      headers: { Authorization: token, content_type: :json, 'X-Audit-Log-Reason': reason }
     )
   end
 
@@ -26,7 +24,7 @@ module OnyxCord::REST::Channel
       channel_id,
       :get,
       "#{OnyxCord::REST.api_base}/channels/#{channel_id}/webhooks",
-      Authorization: token
+      headers: { Authorization: token }
     )
   end
 
@@ -38,10 +36,8 @@ module OnyxCord::REST::Channel
       channel_id,
       :post,
       "#{OnyxCord::REST.api_base}/channels/#{channel_id}/followers",
-      { webhook_channel_id: webhook_channel_id }.to_json,
-      Authorization: token,
-      content_type: :json,
-      'X-Audit-Log-Reason': reason
+      body: { webhook_channel_id: webhook_channel_id }.to_json,
+      headers: { Authorization: token, content_type: :json, 'X-Audit-Log-Reason': reason }
     )
   end
 end

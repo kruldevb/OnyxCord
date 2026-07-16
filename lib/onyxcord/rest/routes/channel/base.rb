@@ -22,7 +22,7 @@ module OnyxCord::REST::Channel
       channel_id,
       :get,
       "#{OnyxCord::REST.api_base}/channels/#{channel_id}",
-      Authorization: token
+      headers: { Authorization: token }
     )
   end
 
@@ -36,10 +36,8 @@ module OnyxCord::REST::Channel
       channel_id,
       :patch,
       "#{OnyxCord::REST.api_base}/channels/#{channel_id}",
-      data.to_json,
-      Authorization: token,
-      content_type: :json,
-      'X-Audit-Log-Reason': reason
+      body: data.to_json,
+      headers: { Authorization: token, content_type: :json, 'X-Audit-Log-Reason': reason }
     )
   end
 
@@ -51,10 +49,8 @@ module OnyxCord::REST::Channel
       channel_id,
       :patch,
       "#{OnyxCord::REST.api_base}/channels/#{channel_id}",
-      { name:, type:, position:, topic:, nsfw:, rate_limit_per_user:, bitrate:, user_limit:, permission_overwrites:, parent_id:, rtc_region:, video_quality_mode:, default_auto_archive_duration:, flags:, available_tags:, default_reaction_emoji:, default_thread_rate_limit_per_user:, default_sort_order:, default_forum_layout:, archived:, auto_archive_duration:, locked:, invitable:, applied_tags: }.reject { |_, value| value == :undef }.to_json,
-      Authorization: token,
-      content_type: :json,
-      'X-Audit-Log-Reason': reason
+      body: { name:, type:, position:, topic:, nsfw:, rate_limit_per_user:, bitrate:, user_limit:, permission_overwrites:, parent_id:, rtc_region:, video_quality_mode:, default_auto_archive_duration:, flags:, available_tags:, default_reaction_emoji:, default_thread_rate_limit_per_user:, default_sort_order:, default_forum_layout:, archived:, auto_archive_duration:, locked:, invitable:, applied_tags: }.reject { |_, value| value == :undef }.to_json,
+      headers: { Authorization: token, content_type: :json, 'X-Audit-Log-Reason': reason }
     )
   end
 
@@ -66,8 +62,7 @@ module OnyxCord::REST::Channel
       channel_id,
       :delete,
       "#{OnyxCord::REST.api_base}/channels/#{channel_id}",
-      Authorization: token,
-      'X-Audit-Log-Reason': reason
+      headers: { Authorization: token, 'X-Audit-Log-Reason': reason }
     )
   end
 end

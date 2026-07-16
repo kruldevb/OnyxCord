@@ -25,7 +25,7 @@ module OnyxCord::REST::Webhook
       nil,
       :get,
       "#{OnyxCord::REST.api_base}/webhooks/#{webhook_id}",
-      Authorization: token
+      headers: { Authorization: token }
     )
   end
 
@@ -67,8 +67,8 @@ module OnyxCord::REST::Webhook
       webhook_id,
       :post,
       "#{OnyxCord::REST.api_base}/webhooks/#{webhook_id}/#{webhook_token}?#{query}",
-      body,
-      headers
+      body: body,
+      headers: headers || {}
     )
   end
 
@@ -80,10 +80,8 @@ module OnyxCord::REST::Webhook
       webhook_id,
       :patch,
       "#{OnyxCord::REST.api_base}/webhooks/#{webhook_id}",
-      data.to_json,
-      Authorization: token,
-      content_type: :json,
-      'X-Audit-Log-Reason': reason
+      body: data.to_json,
+      headers: { Authorization: token, content_type: :json, 'X-Audit-Log-Reason': reason }
     )
   end
 
@@ -95,9 +93,8 @@ module OnyxCord::REST::Webhook
       webhook_id,
       :patch,
       "#{OnyxCord::REST.api_base}/webhooks/#{webhook_id}/#{webhook_token}",
-      data.to_json,
-      content_type: :json,
-      'X-Audit-Log-Reason': reason
+      body: data.to_json,
+      headers: { content_type: :json, 'X-Audit-Log-Reason': reason }
     )
   end
 
@@ -109,8 +106,7 @@ module OnyxCord::REST::Webhook
       webhook_id,
       :delete,
       "#{OnyxCord::REST.api_base}/webhooks/#{webhook_id}",
-      Authorization: token,
-      'X-Audit-Log-Reason': reason
+      headers: { Authorization: token, 'X-Audit-Log-Reason': reason }
     )
   end
 
@@ -122,7 +118,7 @@ module OnyxCord::REST::Webhook
       webhook_id,
       :delete,
       "#{OnyxCord::REST.api_base}/webhooks/#{webhook_id}/#{webhook_token}",
-      'X-Audit-Log-Reason': reason
+      headers: { 'X-Audit-Log-Reason': reason }
     )
   end
 
@@ -158,8 +154,8 @@ module OnyxCord::REST::Webhook
       webhook_id,
       :patch,
       "#{OnyxCord::REST.api_base}/webhooks/#{webhook_id}/#{webhook_token}/messages/#{message_id}",
-      body,
-      headers
+      body: body,
+      headers: headers || {}
     )
   end
 

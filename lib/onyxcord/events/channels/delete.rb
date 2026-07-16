@@ -38,7 +38,7 @@ module OnyxCord::Events
       @is_private = data['is_private']
       @id = data['id'].to_i
       @server = bot.server(data['guild_id'].to_i) if data['guild_id']
-      @owner_id = bot.user(data['owner_id']) if @type == 3
+      @owner_id = data['owner_id']&.to_i if @type == 3
     end
   end
 
@@ -52,8 +52,9 @@ module OnyxCord::Events
 
       [
         matches_all(@attributes[:type], event.type) do |a, e|
-          a == if a.is_a? String
-                 e.name
+          a == case a
+               when String, Symbol
+                 OnyxCord::Channel::TYPES[a.to_sym]
                else
                  e
                end

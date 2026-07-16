@@ -38,8 +38,8 @@ module OnyxCord
 
       @name = data['name']
       @id = data['id'].to_i
-      @channel = bot.channel(data['channel_id'])
-      @server = @channel.server
+      @channel = bot.channel(data['channel_id'].to_i) if data['channel_id']
+      @server = @channel&.server
       @token = data['token']
       @avatar = data['avatar']
       @type = data['type']
@@ -47,10 +47,13 @@ module OnyxCord
       # Will not exist if the data was requested through a webhook token
       return unless data['user']
 
-      @owner = @server.member(data['user']['id'].to_i)
-      return if @owner
+      if @server
+        @owner = @server.member(data['user']['id'].to_i)
+        return if @owner
 
-      OnyxCord::LOGGER.debug("Member with ID #{data['user']['id']} not cached (possibly left the server).")
+        @bot.logger.debug("Member with ID #{data['user']['id']} not cached (possibly left the server).")
+      end
+
       @owner = @bot.ensure_user(data['user'])
     end
 
@@ -209,9 +212,9 @@ module OnyxCord
     end
 
     # Utility function to know if the webhook was requested through a webhook token, rather than auth.
-    # @return [true, false] whether the webhook was requested by token or not.
+    # @return [true, false] whether the webhook has a usable token.
     def token?
-      @owner.nil?
+      !@token.nil?
     end
 
     private

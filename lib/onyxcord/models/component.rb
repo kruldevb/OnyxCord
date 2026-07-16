@@ -171,11 +171,11 @@ module OnyxCord
         attr_reader :emoji
 
         # @!visibility private
-        def initialize(data)
+        def initialize(data, bot)
           @label = data['label']
           @value = data['value']
           @description = data['description']
-          @emoji = Emoji.new(data['emoji'], @bot) if data['emoji']
+          @emoji = Emoji.new(data['emoji'], bot) if data['emoji']
         end
       end
 
@@ -209,7 +209,7 @@ module OnyxCord
         @max_values = data['max_values']
         @min_values = data['min_values']
         @placeholder = data['placeholder']
-        @options = data['options']&.map { |option| Option.new(option) } || []
+        @options = data['options']&.map { |option| Option.new(option, @bot) } || []
       end
     end
 

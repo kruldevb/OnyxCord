@@ -7,8 +7,10 @@ module OnyxCord
     module EventExecutor
       STOP = Object.new.freeze
 
+      REPLACEABLE_EVENTS = %i[typing_start presence_update voice_state_update].freeze
+
       class Inline
-        def post
+        def post(_event_type = nil)
           yield
         end
 
@@ -16,6 +18,10 @@ module OnyxCord
 
         def threads
           []
+        end
+
+        def discarded_count
+          0
         end
       end
 
@@ -27,21 +33,39 @@ module OnyxCord
 
           @size = size
           @queue = queue_size ? SizedQueue.new(queue_size) : Queue.new
+          @replaceable = {}
+          @replaceable_mutex = Mutex.new
+          @discarded_mutex = Mutex.new
+          @discarded = 0
           @closed = false
           @workers = []
 
           start_workers
         end
 
-        def post(&block)
+        def post(event_type = nil, &block)
           raise ArgumentError, 'EventExecutor::Pool#post requires a block' unless block
           raise 'Event executor has been shut down' if @closed
 
-          @queue << block
+          if event_type && REPLACEABLE_EVENTS.include?(event_type)
+            @replaceable_mutex.synchronize do
+              @replaceable[event_type] = block
+            end
+            return
+          end
+
+          @queue.push(block)
+        rescue ThreadError
+          @discarded_mutex.synchronize { @discarded += 1 }
+          OnyxCord::LOGGER.debug('Event queue full, dropping event') if defined?(OnyxCord::LOGGER)
         end
 
         def queue_size
           @queue.size
+        end
+
+        def discarded_count
+          @discarded_mutex.synchronize { @discarded }
         end
 
         def threads
@@ -77,8 +101,16 @@ module OnyxCord
             break if job.equal?(STOP)
 
             job.call
+            drain_replaceable
           rescue StandardError => e
             OnyxCord::LOGGER.log_exception(e) if defined?(OnyxCord::LOGGER)
+          end
+        end
+
+        def drain_replaceable
+          @replaceable_mutex.synchronize do
+            @replaceable.each_value(&:call)
+            @replaceable.clear
           end
         end
       end
@@ -91,20 +123,37 @@ module OnyxCord
 
           @size = size
           @queue = ::Async::Queue.new
+          @replaceable = {}
+          @replaceable_mutex = Mutex.new
+          @discarded_mutex = Mutex.new
+          @discarded = 0
           @closed = false
           @workers = []
           start_workers
         end
 
-        def post(&block)
+        def post(event_type = nil, &block)
           raise ArgumentError, 'EventExecutor::AsyncPool#post requires a block' unless block
           raise 'Event executor has been shut down' if @closed
 
+          if event_type && REPLACEABLE_EVENTS.include?(event_type)
+            @replaceable_mutex.synchronize do
+              @replaceable[event_type] = block
+            end
+            return
+          end
+
           @queue.enqueue(block)
+        rescue ThreadError
+          @discarded_mutex.synchronize { @discarded += 1 }
         end
 
         def queue_size
           @queue.size
+        end
+
+        def discarded_count
+          @discarded_mutex.synchronize { @discarded }
         end
 
         def shutdown

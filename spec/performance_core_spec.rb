@@ -119,35 +119,43 @@ describe 'OnyxCord performance core' do
     it 'does not allocate cache maps for :none' do
       bot = build_bot(cache: :none)
 
-      expect(bot.instance_variable_get(:@servers)).to be_nil
-      expect(bot.instance_variable_get(:@channels)).to be_nil
-      expect(bot.instance_variable_get(:@users)).to be_nil
+      expect(bot.instance_variable_get(:@servers).enabled?).to be false
+      expect(bot.instance_variable_get(:@channels).enabled?).to be false
+      expect(bot.instance_variable_get(:@users).enabled?).to be false
     end
 
     it 'allocates only server and channel maps for :minimal' do
       bot = build_bot(cache: :minimal)
 
-      expect(bot.instance_variable_get(:@servers)).to be_a(LruRedux::ThreadSafeCache)
-      expect(bot.instance_variable_get(:@channels)).to be_a(LruRedux::ThreadSafeCache)
-      expect(bot.instance_variable_get(:@users)).to be_nil
-      expect(bot.instance_variable_get(:@thread_members)).to be_nil
+      expect(bot.instance_variable_get(:@servers)).to be_a(OnyxCord::Cache::Stores::LruCacheStore)
+      expect(bot.instance_variable_get(:@servers).enabled?).to be true
+      expect(bot.instance_variable_get(:@channels)).to be_a(OnyxCord::Cache::Stores::LruCacheStore)
+      expect(bot.instance_variable_get(:@channels).enabled?).to be true
+      expect(bot.instance_variable_get(:@users).enabled?).to be false
+      expect(bot.instance_variable_get(:@thread_members).enabled?).to be false
     end
 
     it 'allocates all cache maps for :full' do
       bot = build_bot(cache: :full)
 
-      expect(bot.instance_variable_get(:@servers)).to be_a(LruRedux::ThreadSafeCache)
-      expect(bot.instance_variable_get(:@channels)).to be_a(LruRedux::ThreadSafeCache)
-      expect(bot.instance_variable_get(:@users)).to be_a(LruRedux::ThreadSafeCache)
-      expect(bot.instance_variable_get(:@thread_members)).to be_a(LruRedux::ThreadSafeCache)
+      expect(bot.instance_variable_get(:@servers)).to be_a(OnyxCord::Cache::Stores::LruCacheStore)
+      expect(bot.instance_variable_get(:@servers).enabled?).to be true
+      expect(bot.instance_variable_get(:@channels)).to be_a(OnyxCord::Cache::Stores::LruCacheStore)
+      expect(bot.instance_variable_get(:@channels).enabled?).to be true
+      expect(bot.instance_variable_get(:@users)).to be_a(OnyxCord::Cache::Stores::LruCacheStore)
+      expect(bot.instance_variable_get(:@users).enabled?).to be true
+      expect(bot.instance_variable_get(:@thread_members)).to be_a(OnyxCord::Cache::Stores::LruCacheStore)
+      expect(bot.instance_variable_get(:@thread_members).enabled?).to be true
     end
 
     it 'accepts hash overrides' do
       bot = build_bot(cache: { servers: true, users: true })
 
-      expect(bot.instance_variable_get(:@servers)).to be_a(LruRedux::ThreadSafeCache)
-      expect(bot.instance_variable_get(:@users)).to be_a(LruRedux::ThreadSafeCache)
-      expect(bot.instance_variable_get(:@channels)).to be_nil
+      expect(bot.instance_variable_get(:@servers)).to be_a(OnyxCord::Cache::Stores::LruCacheStore)
+      expect(bot.instance_variable_get(:@servers).enabled?).to be true
+      expect(bot.instance_variable_get(:@users)).to be_a(OnyxCord::Cache::Stores::LruCacheStore)
+      expect(bot.instance_variable_get(:@users).enabled?).to be true
+      expect(bot.instance_variable_get(:@channels).enabled?).to be false
     end
 
     it 'reports and prunes cache stores' do
@@ -155,9 +163,12 @@ describe 'OnyxCord performance core' do
       bot.instance_variable_get(:@users)[1] = :user
       bot.instance_variable_get(:@channels)[2] = :channel
 
-      expect(bot.cache_stats).to include(users: 1, channels: 1)
-      expect(bot.prune_cache!(:users)).to eq(users: 1)
-      expect(bot.cache_stats).to include(users: 0, channels: 1)
+      stats = bot.cache_stats
+      expect(stats[:users][:size]).to eq(1)
+      expect(stats[:channels][:size]).to eq(1)
+      expect(bot.prune_cache!(:users)[:users]).to eq(1)
+      expect(bot.cache_stats[:users][:size]).to eq(0)
+      expect(bot.cache_stats[:channels][:size]).to eq(1)
     end
 
     it 'reports runtime stats' do
@@ -169,7 +180,8 @@ describe 'OnyxCord performance core' do
         event_threads: 0,
         event_queue_size: 0
       )
-      expect(bot.runtime_stats[:cache]).to include(servers: 0, channels: 0)
+      expect(bot.runtime_stats[:cache][:servers][:size]).to eq(0)
+      expect(bot.runtime_stats[:cache][:channels][:size]).to eq(0)
     end
   end
 

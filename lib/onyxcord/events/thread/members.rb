@@ -25,20 +25,27 @@ module OnyxCord::Events
       @removed_member_ids = data['removed_member_ids']&.map(&:resolve_id) || []
       @member_count = data['member_count']
     end
-  end
 
-  # @return [Array<Member, User>] the members that were added to the thread
-  def added_members
-    @added_members ||= @added_member_ids&.map { |id| @server&.member(id) || @bot.user(id) }
+    # @return [Array<Member, User>] the members that were added to the thread
+    def added_members
+      @added_members ||= @added_member_ids&.map { |id| @server&.member(id) || @bot.user(id) }
+    end
   end
 
   # Event handler for ThreadMembersUpdateEvent
-  class ThreadMembersUpdateEventHandler < ThreadCreateEventHandler
+  class ThreadMembersUpdateEventHandler < EventHandler
     def matches?(event)
       # Check for the proper event type
       return false unless event.is_a? ThreadMembersUpdateEvent
 
-      super
+      [
+        matches_all(@attributes[:server], event.server) do |a, e|
+          a.resolve_id == e&.id
+        end,
+        matches_all(@attributes[:thread], event.thread) do |a, e|
+          a.resolve_id == e&.id
+        end
+      ].reduce(true, &:&)
     end
   end
 end

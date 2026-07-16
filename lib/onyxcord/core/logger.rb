@@ -44,8 +44,11 @@ module OnyxCord
     FORMAT_BOLD = "\u001B[1m"
 
     MODES.each do |mode, hash|
-      define_method(mode) do |message|
-        write(message.to_s, hash) if @enabled_modes.include? mode
+      define_method(mode) do |message = nil, &block|
+        return unless @enabled_modes.include?(mode)
+
+        msg = block ? block.call : message
+        write(msg.to_s, hash)
       end
     end
 

@@ -1,34 +1,61 @@
 # frozen_string_literal: true
 
 class OnyxCord::Commands::Bot
+  # Structured result of command execution for internal chain handling.
+  # status: :executed, :skipped, :cancelled, :failed
+  # value: the return value of the command (nil if not executed)
+  # reason: symbol describing why (nil if executed), e.g. :no_permission, :rate_limited, :unknown_command, :bad_channel, :hook_cancelled
+  ExecutionResult = Data.define(:status, :value, :reason) do
+    def executed?
+      status == :executed
+    end
+
+    def failed?
+      status == :failed
+    end
+
+    def cancelled?
+      status == :cancelled
+    end
+
+    def skipped?
+      status == :skipped
+    end
+  end
+
   module Execution
-    # Returns all aliases for the command with the given name
+    # Returns all aliases for the command with the given name.
+    # Delegates to CommandContainer#command_aliases (O(1) inverted index).
     # @param name [Symbol] the name of the `Command`
     # @return [Array<CommandAlias>]
     def command_aliases(name)
-      commands.values.select do |command|
-        command.is_a?(OnyxCord::Commands::CommandAlias) && command.aliased_command.name == name
-      end
+      super(name)
     end
 
-    # Executes a particular command on the bot. Mostly useful for internal stuff, but one can never know.
+    # Executes a particular command on the bot.
     # @param name [Symbol] The command to execute.
     # @param event [CommandEvent] The event to pass to the command.
     # @param arguments [Array<String>] The arguments to pass to the command.
-    # @param chained [true, false] Whether or not it should be executed as part of a command chain. If this is false,
-    #   commands that have chain_usable set to false will not work.
-    # @param check_permissions [true, false] Whether permission parameters such as `required_permission` or
-    #   `permission_level` should be checked.
+    # @param chained [true, false] Whether or not it should be executed as part of a command chain.
+    # @param check_permissions [true, false] Whether permission parameters should be checked.
     # @return [String, nil] the command's result, if there is any.
-
     def execute_command(name, event, arguments, chained = false, check_permissions = true)
-      debug("Executing command #{name} with arguments #{arguments}")
-      return unless @commands
+      execute_command_result(name, event, arguments, chained, check_permissions).value
+    end
 
-      command = @commands[name]
-      command = command.aliased_command if command.is_a?(OnyxCord::Commands::CommandAlias)
-      return unless !check_permissions || channels?(event.channel, @attributes[:channels]) ||
-                    (command && !command.attributes[:channels].nil?)
+    # Internal structured execution that returns an ExecutionResult.
+    # Used by command chains to distinguish between failure and a command returning false/nil.
+    # @return [ExecutionResult]
+    def execute_command_result(name, event, arguments, chained = false, check_permissions = true)
+      debug("Executing command #{name} server=#{event.respond_to?(:server) && event.server&.id} user=#{event.respond_to?(:author) && event.author&.id}")
+      return ExecutionResult.new(:failed, nil, :no_commands) unless @commands
+
+      command = resolve_command(name)
+
+      unless !check_permissions || channels?(event.channel, @attributes[:channels]) ||
+             (command && !command.attributes[:channels].nil?)
+        return ExecutionResult.new(:failed, nil, :bad_channel)
+      end
 
       unless command
         if @attributes[:command_doesnt_exist_message]
@@ -36,27 +63,30 @@ class OnyxCord::Commands::Bot
           message = message.call(event) if message.respond_to?(:call)
           event.respond message.gsub('%command%', name.to_s) if message
         end
-        return
+        return ExecutionResult.new(:failed, nil, :unknown_command)
       end
-      return unless !check_permissions || channels?(event.channel, command.attributes[:channels])
+
+      unless !check_permissions || channels?(event.channel, command.attributes[:channels])
+        return ExecutionResult.new(:failed, nil, :bad_channel)
+      end
+
+      if check_permissions
+        unless permission?(event.author, command.attributes[:permission_level], event.server) &&
+               required_permissions?(event.author, command.attributes[:required_permissions], event.channel) &&
+               required_roles?(event.author, command.attributes[:required_roles]) &&
+               allowed_roles?(event.author, command.attributes[:allowed_roles])
+          event.respond command.attributes[:permission_message].gsub('%name%', name.to_s) if command.attributes[:permission_message]
+          return ExecutionResult.new(:failed, nil, :no_permission)
+        end
+      end
 
       arguments = arg_check(arguments, command.attributes[:arg_types], event.server) if check_permissions
-      if (check_permissions &&
-         permission?(event.author, command.attributes[:permission_level], event.server) &&
-         required_permissions?(event.author, command.attributes[:required_permissions], event.channel) &&
-         required_roles?(event.author, command.attributes[:required_roles]) &&
-         allowed_roles?(event.author, command.attributes[:allowed_roles])) ||
-         !check_permissions
-        event.command = command
-        result = command.call(event, arguments, chained, check_permissions)
-        stringify(result)
-      else
-        event.respond command.attributes[:permission_message].gsub('%name%', name.to_s) if command.attributes[:permission_message]
-        nil
-      end
+      event.command = command
+      result = command.call(event, arguments, chained, check_permissions)
+      ExecutionResult.new(:executed, stringify(result), nil)
     rescue OnyxCord::Errors::NoPermission
       event.respond @attributes[:no_permission_message] unless @attributes[:no_permission_message].nil?
-      raise
+      ExecutionResult.new(:failed, nil, :no_permission)
     end
 
     # Transforms an array of string arguments based on types array.

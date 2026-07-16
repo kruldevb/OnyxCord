@@ -9,8 +9,8 @@ module OnyxCord
         # Check whether there are still unavailable servers and there have been more than 10 seconds since READY
         if @unavailable_servers&.positive? && (Time.now - @unavailable_timeout_time) > 10 && !(@intents || 0).nobits?(INTENTS[:servers])
           # The server streaming timed out!
-          LOGGER.debug("Server streaming timed out with #{@unavailable_servers} servers remaining")
-          LOGGER.debug('Calling ready now because server loading is taking a long time. Servers may be unavailable due to an outage, or your bot is on very large servers.')
+          @logger.debug("Server streaming timed out with #{@unavailable_servers} servers remaining")
+          @logger.debug('Calling ready now because server loading is taking a long time. Servers may be unavailable due to an outage, or your bot is on very large servers.')
 
           # Unset the unavailable server count so this doesn't get triggered again
           @unavailable_servers = 0
@@ -28,9 +28,6 @@ module OnyxCord
           @profile = Profile.new(data['user'], self)
 
           @client_id ||= data['application']['id']&.to_i
-
-          # Initialize servers
-          @servers = {}
 
           # Count unavailable servers
           @unavailable_servers = 0
@@ -59,10 +56,17 @@ module OnyxCord
           @unavailable_timeout_time = Time.now
         when :GUILD_MEMBERS_CHUNK
           id = data['guild_id'].to_i
-          server = server(id)
-          server.process_chunk(data['members'], data['chunk_index'], data['chunk_count'])
+          server = @servers[id]
+          server&.process_chunk(data['members'], data['chunk_index'], data['chunk_count'], data['nonce'])
         when :USER_UPDATE
+          old_user = @users[data['id'].to_i]
+          old_username = old_user&.username
           @profile = Profile.new(data, self)
+          new_username = @profile.username
+          if old_username && new_username != old_username
+            deindex_user_name_by_name(old_username, @profile.id)
+            index_user_name(@profile)
+          end
         when :INVITE_CREATE
           invite = Invite.new(data, self)
           raise_event(InviteCreateEvent.new(data, invite, self))
@@ -127,6 +131,14 @@ module OnyxCord
         when :MESSAGE_UPDATE
           update_message(data)
 
+          if data['author'].nil?
+            @logger.debug("Edited a message with nil author! Content: #{data['content']&.inspect}, channel: #{data['channel_id']}")
+            message = Message.new(data, self)
+            event = MessageUpdateEvent.new(message, self)
+            raise_event(event)
+            return
+          end
+
           if !should_parse_self && profile.id == data['author']['id'].to_i
             debug('Ignored message from the current bot')
             return
@@ -136,11 +148,6 @@ module OnyxCord
 
           event = MessageUpdateEvent.new(message, self)
           raise_event(event)
-
-          if data['author'].nil?
-            LOGGER.debug("Edited a message with nil author! Content: #{message.content.inspect}, channel: #{message.channel.inspect}")
-            return
-          end
 
           # Update the existing member if it exists in the cache.
           if data['member']
@@ -344,7 +351,7 @@ module OnyxCord
           delete_guild(data)
 
           if data['unavailable'].is_a? TrueClass
-            LOGGER.warn("Server #{data['id']} is unavailable due to an outage!")
+            @logger.warn("Server #{data['id']} is unavailable due to an outage!")
             return # Don't raise an event
           end
 
@@ -457,12 +464,6 @@ module OnyxCord
           server_id = data['guild_id'].to_i
           server = @servers[server_id]
 
-          # The `channel_ids` field has two meanings:
-          #
-          # 1. If the field is not present, the thread list is being synced for the whole server.
-          #
-          # 2. We are syncing the threads for a specific channel. This can happen when gaining access
-          #    to a channel.
           if (ids = data['channel_ids']&.map(&:to_i))
             @channels.delete_if { |_, channel| channel.thread? && ids.any?(channel.parent&.id) }
             server&.clear_threads(ids)
@@ -482,8 +483,9 @@ module OnyxCord
             ensure_thread_member(added_member) if added_member['user_id']
           end
 
+          thread_id = data['id']&.resolve_id
           data['removed_member_ids']&.each do |member_id|
-            @thread_members[data['id']&.resolve_id]&.delete(member_id&.resolve_id)
+            @thread_members[thread_id]&.delete(member_id&.resolve_id)
           end
 
           event = ThreadMembersUpdateEvent.new(data, self)
@@ -535,13 +537,11 @@ module OnyxCord
           event = RawEvent.new(type, data, self)
           raise_event(event)
         end
-      rescue Exception => e
-        if defined?(Async::Cancel) && e.is_a?(Async::Cancel)
-          LOGGER.debug('Gateway message handling was cancelled.')
-          return
-        end
-
-        LOGGER.error('Gateway message error!')
+      rescue Async::Cancel => e
+        @logger.debug('Gateway message handling was cancelled.')
+        return
+      rescue StandardError => e
+        @logger.error('Gateway message error!')
         log_exception(e)
       end
 
@@ -571,7 +571,8 @@ module OnyxCord
       end
 
       def call_raw_handler(handler, packet)
-        @event_executor.post do
+        event_type = packet['t']&.downcase&.to_sym
+        @event_executor.post(event_type) do
           Thread.current[:onyxcord_name] = next_event_thread_name('rt')
           handler.call(packet)
         rescue StandardError => e
@@ -583,7 +584,7 @@ module OnyxCord
         return if @raw_ready_notified
 
         @raw_ready_notified = true
-        LOGGER.good 'Ready'
+        @logger.good 'Ready'
         @gateway.notify_ready
       end
     end

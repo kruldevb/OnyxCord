@@ -39,6 +39,7 @@ describe OnyxCord::Commands::Bot, order: :defined do
       allow(event).to receive(:drain_into) { |e| e }
       allow(event).to receive(:server)
       allow(event).to receive(:channel)
+      allow(event).to receive(:respond)
     end
   end
 
@@ -49,6 +50,10 @@ describe OnyxCord::Commands::Bot, order: :defined do
         allow(member).to receive(:roles) { user_roles }
         allow(member).to receive(:permission?) { true }
         allow(member).to receive(:webhook?) { false }
+        allow(member).to receive(:role?) do |role_id|
+          role_id = role_id.resolve_id
+          user_roles.any? { |r| r['id'].to_i == role_id || r['id'] == role_id }
+        end
       end
     end
   end
@@ -157,9 +162,8 @@ describe OnyxCord::Commands::Bot, order: :defined do
 
   describe '#execute_command', order: :defined do
     context 'with role filter', order: :defined do
-      bot = OnyxCord::Commands::Bot.new(token: 'token', help_available: false)
-
       describe 'required_roles' do
+        let(:bot) { OnyxCord::Commands::Bot.new(token: 'token', help_available: false) }
         before do
           # User has both roles.
           bot.command :user_has_all, required_roles: [role1, role2] do
@@ -172,13 +176,13 @@ describe OnyxCord::Commands::Bot, order: :defined do
           end
         end
 
-        it 'responds when the user has all the roles', skip: true do
+        it 'responds when the user has all the roles' do
           plain_event = command_event_double_for_channel(first_channel)
           result = bot.execute_command(:user_has_all, plain_event, [])
           expect(result).to eq SIMPLE_RESPONSE
         end
 
-        it 'does not respond with one role missing', skip: true do
+        it 'does not respond with one role missing' do
           plain_event = command_event_double_with_channel(first_channel)
           result = bot.execute_command(:user_has_one, plain_event, [])
           expect(result).to eq nil
@@ -186,27 +190,26 @@ describe OnyxCord::Commands::Bot, order: :defined do
       end
 
       describe 'allowed_roles' do
+        let(:bot) { OnyxCord::Commands::Bot.new(token: 'token', help_available: false) }
         before do
-          # User has one role.
-          bot.command :user_has_one, required_roles: [role1, 123] do
+          bot.command :allowed_has_role, allowed_roles: [role1] do
             SIMPLE_RESPONSE
           end
 
-          # User doesn't have any.
-          bot.command :user_has_none, required_roles: [123, 456] do
+          bot.command :allowed_has_none, allowed_roles: [123, 456] do
             SIMPLE_RESPONSE
           end
         end
 
-        it 'responds when the user has at least one role', skip: true do
+        it 'responds when the user has at least one role' do
           plain_event = command_event_double_with_channel(first_channel)
-          result = bot.execute_command(:user_has_one, plain_event, [])
+          result = bot.execute_command(:allowed_has_role, plain_event, [])
           expect(result).to eq SIMPLE_RESPONSE
         end
 
         it 'does not respond to a user with none of the roles' do
           plain_event = command_event_double_with_channel(first_channel)
-          result = bot.execute_command(:any_role, plain_event, [])
+          result = bot.execute_command(:allowed_has_none, plain_event, [])
           expect(result).to eq nil
         end
       end

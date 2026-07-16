@@ -11,10 +11,8 @@ module OnyxCord::REST::Channel
       channel_id,
       :put,
       "#{OnyxCord::REST.api_base}/channels/#{channel_id}/permissions/#{overwrite_id}",
-      { type: type, id: overwrite_id, allow: allow, deny: deny }.to_json,
-      Authorization: token,
-      content_type: :json,
-      'X-Audit-Log-Reason': reason
+      body: { type: type, id: overwrite_id, allow: allow, deny: deny }.to_json,
+      headers: { Authorization: token, content_type: :json, 'X-Audit-Log-Reason': reason }
     )
   end
 
@@ -26,7 +24,7 @@ module OnyxCord::REST::Channel
       channel_id,
       :get,
       "#{OnyxCord::REST.api_base}/channels/#{channel_id}/invites",
-      Authorization: token
+      headers: { Authorization: token }
     )
   end
 
@@ -38,10 +36,8 @@ module OnyxCord::REST::Channel
       channel_id,
       :post,
       "#{OnyxCord::REST.api_base}/channels/#{channel_id}/invites",
-      { max_age: max_age, max_uses: max_uses, temporary: temporary, unique: unique }.to_json,
-      Authorization: token,
-      content_type: :json,
-      'X-Audit-Log-Reason': reason
+      body: { max_age: max_age, max_uses: max_uses, temporary: temporary, unique: unique }.to_json,
+      headers: { Authorization: token, content_type: :json, 'X-Audit-Log-Reason': reason }
     )
   end
 
@@ -53,8 +49,7 @@ module OnyxCord::REST::Channel
       channel_id,
       :delete,
       "#{OnyxCord::REST.api_base}/channels/#{channel_id}/permissions/#{overwrite_id}",
-      Authorization: token,
-      'X-Audit-Log-Reason': reason
+      headers: { Authorization: token, 'X-Audit-Log-Reason': reason }
     )
   end
 
@@ -66,8 +61,7 @@ module OnyxCord::REST::Channel
       channel_id,
       :post,
       "#{OnyxCord::REST.api_base}/channels/#{channel_id}/typing",
-      nil,
-      Authorization: token
+      headers: { Authorization: token }
     )
   end
 end

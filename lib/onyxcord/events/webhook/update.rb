@@ -48,16 +48,6 @@ module OnyxCord::Events
           else
             a == e
           end
-        end,
-        matches_all(@attributes[:webhook], event) do |a, e|
-          a == case a
-               when String
-                 e.name
-               when Integer
-                 e.id
-               else
-                 e
-               end
         end
       ].reduce(true, &:&)
     end

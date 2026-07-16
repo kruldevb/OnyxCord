@@ -12,9 +12,8 @@ module OnyxCord::REST::Channel
       nil,
       :post,
       "#{OnyxCord::REST.api_base}/users/#{bot_user_id}/channels",
-      {}.to_json,
-      Authorization: token,
-      content_type: :json
+      body: {}.to_json,
+      headers: { Authorization: token, content_type: :json }
     )
   end
 
@@ -27,9 +26,8 @@ module OnyxCord::REST::Channel
       nil,
       :put,
       "#{OnyxCord::REST.api_base}/channels/#{pm_channel_id}/recipients/#{user_id}",
-      {}.to_json,
-      Authorization: token,
-      content_type: :json
+      body: {}.to_json,
+      headers: { Authorization: token, content_type: :json }
     )
   end
 
@@ -42,9 +40,8 @@ module OnyxCord::REST::Channel
       nil,
       :put,
       "#{OnyxCord::REST.api_base}/channels/#{group_channel_id}/recipients/#{user_id}",
-      {}.to_json,
-      Authorization: token,
-      content_type: :json
+      body: {}.to_json,
+      headers: { Authorization: token, content_type: :json }
     )
   end
 
@@ -57,8 +54,7 @@ module OnyxCord::REST::Channel
       nil,
       :delete,
       "#{OnyxCord::REST.api_base}/channels/#{group_channel_id}/recipients/#{user_id}",
-      Authorization: token,
-      content_type: :json
+      headers: { Authorization: token, content_type: :json }
     )
   end
 
@@ -71,8 +67,7 @@ module OnyxCord::REST::Channel
       nil,
       :delete,
       "#{OnyxCord::REST.api_base}/channels/#{group_channel_id}",
-      Authorization: token,
-      content_type: :json
+      headers: { Authorization: token, content_type: :json }
     )
   end
 end

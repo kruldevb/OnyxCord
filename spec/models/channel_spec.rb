@@ -10,9 +10,11 @@ describe OnyxCord::Channel do
   # Instantiate the doubles here so we can apply mocks in the specs
   let(:bot) { double('bot') }
   let(:server) { double('server', id: double) }
+  let(:bot_logger) { double('logger') }
 
   subject(:channel) do
     allow(bot).to receive(:token) { 'fake token' }
+    allow(bot).to receive(:logger) { bot_logger }
     described_class.new(data, bot, server)
   end
 
@@ -231,12 +233,36 @@ describe OnyxCord::Channel do
     end
   end
 
+  describe 'DM channel with empty recipients' do
+    it 'does not crash and name is nil when recipients array is empty' do
+      dm_data = {
+        'id' => 12_345,
+        'type' => 1,
+        'recipients' => []
+      }
+      dm_channel = described_class.new(dm_data, bot, nil)
+      expect(dm_channel.name).to be_nil
+    end
+
+    it 'uses first recipient username when recipients exist' do
+      recipient_data = { 'id' => '123', 'username' => 'testuser', 'discriminator' => '0000' }
+      dm_data = {
+        'id' => 12_345,
+        'type' => 1,
+        'recipients' => [recipient_data]
+      }
+      allow(bot).to receive(:ensure_user).with(recipient_data).and_return(double(username: 'testuser'))
+      dm_channel = described_class.new(dm_data, bot, nil)
+      expect(dm_channel.name).to eq('testuser')
+    end
+  end
+
   describe '#bulk_delete' do
     it 'should log with old messages' do
       messages = [1, 2, 3, 4]
       allow(OnyxCord::IDObject).to receive(:synthesise).and_return(3)
       allow(OnyxCord::REST::Channel).to receive(:bulk_delete_messages)
-      expect(OnyxCord::LOGGER).to receive(:warn).exactly(2).times
+      expect(bot_logger).to receive(:warn).exactly(2).times
       channel.__send__(:bulk_delete, messages)
     end
 
@@ -248,14 +274,12 @@ describe OnyxCord::Channel do
     end
 
     context 'when in non-strict mode' do
-      let(:@bot) { double('bot', token: 'token') }
-
       it 'should remove old messages ' do
         allow(OnyxCord::IDObject).to receive(:synthesise).and_return(4)
         messages = [1, 2, 3, 4]
 
         # Suppresses some noisy WARN logging from specs output
-        allow(OnyxCord::LOGGER).to receive(:warn)
+        allow(bot_logger).to receive(:warn)
         allow(OnyxCord::REST::Channel).to receive(:bulk_delete_messages)
 
         channel.__send__(:delete_messages, messages)

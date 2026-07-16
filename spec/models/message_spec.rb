@@ -232,6 +232,56 @@ describe OnyxCord::Message do
     end
   end
 
+  describe '#poll_result' do
+    it 'does not mutate the original embeds array' do
+      poll_embed = {
+        'type' => 'poll_result',
+        'poll_result' => {
+          'answer_ids' => [1, 2]
+        }
+      }
+      regular_embed = {
+        'type' => 'rich',
+        'title' => 'Regular embed'
+      }
+
+      allow(OnyxCord::Poll::Result).to receive(:new).and_return(nil)
+
+      data = message_data
+      data['type'] = 46
+      data['id'] = message_id
+      data['guild_id'] = server_id
+      data['channel_id'] = channel_id
+      data['embeds'] = [poll_embed, regular_embed]
+
+      original_embeds = data['embeds']
+      described_class.new(data, bot)
+      expect(data['embeds']).to equal(original_embeds)
+      expect(data['embeds'].size).to eq(2)
+    end
+
+    it 'extracts poll_result embed correctly' do
+      poll_embed = {
+        'type' => 'poll_result',
+        'poll_result' => {
+          'answer_ids' => [1]
+        }
+      }
+      mock_result = double('poll_result')
+      allow(OnyxCord::Poll::Result).to receive(:new).and_return(mock_result)
+
+      data = message_data
+      data['type'] = 46
+      data['id'] = message_id
+      data['guild_id'] = server_id
+      data['channel_id'] = channel_id
+      data['embeds'] = [poll_embed]
+
+      message = described_class.new(data, bot)
+      expect(message.poll_result).to be(mock_result)
+    end
+  end
+
   describe '#reply' do
     let(:message) { described_class.new(message_data, bot) }
     let(:content) { instance_double('String', 'content') }

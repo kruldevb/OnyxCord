@@ -11,10 +11,8 @@ module OnyxCord::REST::Server
       server_id,
       :post,
       "#{OnyxCord::REST.api_base}/guilds/#{server_id}/emojis",
-      { image: image, name: name, roles: roles }.to_json,
-      Authorization: token,
-      content_type: :json,
-      'X-Audit-Log-Reason': reason
+      body: { image: image, name: name, roles: roles }.to_json,
+      headers: { Authorization: token, content_type: :json, 'X-Audit-Log-Reason': reason }
     )
   end
 
@@ -26,10 +24,8 @@ module OnyxCord::REST::Server
       server_id,
       :patch,
       "#{OnyxCord::REST.api_base}/guilds/#{server_id}/emojis/#{emoji_id}",
-      { name: name, roles: roles }.to_json,
-      Authorization: token,
-      content_type: :json,
-      'X-Audit-Log-Reason': reason
+      body: { name: name, roles: roles }.to_json,
+      headers: { Authorization: token, content_type: :json, 'X-Audit-Log-Reason': reason }
     )
   end
 
@@ -41,8 +37,7 @@ module OnyxCord::REST::Server
       server_id,
       :delete,
       "#{OnyxCord::REST.api_base}/guilds/#{server_id}/emojis/#{emoji_id}",
-      Authorization: token,
-      'X-Audit-Log-Reason': reason
+      headers: { Authorization: token, 'X-Audit-Log-Reason': reason }
     )
   end
 end

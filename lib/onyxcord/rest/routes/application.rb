@@ -12,7 +12,7 @@ module OnyxCord::REST::Application
       nil,
       :get,
       "#{OnyxCord::REST.api_base}/applications/#{application_id}/commands",
-      Authorization: token
+      headers: { Authorization: token }
     )
   end
 
@@ -24,7 +24,7 @@ module OnyxCord::REST::Application
       nil,
       :get,
       "#{OnyxCord::REST.api_base}/applications/#{application_id}/commands/#{command_id}",
-      Authorization: token
+      headers: { Authorization: token }
     )
   end
 
@@ -36,11 +36,10 @@ module OnyxCord::REST::Application
       nil,
       :post,
       "#{OnyxCord::REST.api_base}/applications/#{application_id}/commands",
-      { name: name, description: description, options: options, default_permission: default_permission, type: type,
+      body: { name: name, description: description, options: options, default_permission: default_permission, type: type,
         default_member_permissions: default_member_permissions, contexts: contexts, nsfw: nsfw, integration_types: integration_types,
         name_localizations: name_localizations, description_localizations: description_localizations }.compact.to_json,
-      Authorization: token,
-      content_type: :json
+      headers: { Authorization: token, content_type: :json }
     )
   end
 
@@ -52,11 +51,10 @@ module OnyxCord::REST::Application
       nil,
       :patch,
       "#{OnyxCord::REST.api_base}/applications/#{application_id}/commands/#{command_id}",
-      { name: name, description: description, options: options, default_permission: default_permission, type: type,
+      body: { name: name, description: description, options: options, default_permission: default_permission, type: type,
         default_member_permissions: default_member_permissions, contexts: contexts, nsfw: nsfw, integration_types: integration_types,
         name_localizations: name_localizations, description_localizations: description_localizations }.compact.to_json,
-      Authorization: token,
-      content_type: :json
+      headers: { Authorization: token, content_type: :json }
     )
   end
 
@@ -68,7 +66,7 @@ module OnyxCord::REST::Application
       nil,
       :delete,
       "#{OnyxCord::REST.api_base}/applications/#{application_id}/commands/#{command_id}",
-      Authorization: token
+      headers: { Authorization: token }
     )
   end
 
@@ -80,9 +78,8 @@ module OnyxCord::REST::Application
       nil,
       :put,
       "#{OnyxCord::REST.api_base}/applications/#{application_id}/commands",
-      commands.to_json,
-      Authorization: token,
-      content_type: :json
+      body: commands.to_json,
+      headers: { Authorization: token, content_type: :json }
     )
   end
 
@@ -94,7 +91,7 @@ module OnyxCord::REST::Application
       guild_id,
       :get,
       "#{OnyxCord::REST.api_base}/applications/#{application_id}/guilds/#{guild_id}/commands",
-      Authorization: token
+      headers: { Authorization: token }
     )
   end
 
@@ -106,7 +103,7 @@ module OnyxCord::REST::Application
       guild_id,
       :get,
       "#{OnyxCord::REST.api_base}/applications/#{application_id}/guilds/#{guild_id}/commands/#{command_id}",
-      Authorization: token
+      headers: { Authorization: token }
     )
   end
 
@@ -118,11 +115,10 @@ module OnyxCord::REST::Application
       guild_id,
       :post,
       "#{OnyxCord::REST.api_base}/applications/#{application_id}/guilds/#{guild_id}/commands",
-      { name: name, description: description, options: options, default_permission: default_permission, type: type,
+      body: { name: name, description: description, options: options, default_permission: default_permission, type: type,
         default_member_permissions: default_member_permissions, contexts: contexts, nsfw: nsfw, integration_types: integration_types,
         name_localizations: name_localizations, description_localizations: description_localizations }.compact.to_json,
-      Authorization: token,
-      content_type: :json
+      headers: { Authorization: token, content_type: :json }
     )
   end
 
@@ -134,11 +130,10 @@ module OnyxCord::REST::Application
       guild_id,
       :patch,
       "#{OnyxCord::REST.api_base}/applications/#{application_id}/guilds/#{guild_id}/commands/#{command_id}",
-      { name: name, description: description, options: options, default_permission: default_permission, type: type,
+      body: { name: name, description: description, options: options, default_permission: default_permission, type: type,
         default_member_permissions: default_member_permissions, contexts: contexts, nsfw: nsfw, integration_types: integration_types,
         name_localizations: name_localizations, description_localizations: description_localizations }.compact.to_json,
-      Authorization: token,
-      content_type: :json
+      headers: { Authorization: token, content_type: :json }
     )
   end
 
@@ -150,7 +145,7 @@ module OnyxCord::REST::Application
       guild_id,
       :delete,
       "#{OnyxCord::REST.api_base}/applications/#{application_id}/guilds/#{guild_id}/commands/#{command_id}",
-      Authorization: token
+      headers: { Authorization: token }
     )
   end
 
@@ -162,9 +157,8 @@ module OnyxCord::REST::Application
       guild_id,
       :put,
       "#{OnyxCord::REST.api_base}/applications/#{application_id}/guilds/#{guild_id}/commands",
-      commands.to_json,
-      Authorization: token,
-      content_type: :json
+      body: commands.to_json,
+      headers: { Authorization: token, content_type: :json }
     )
   end
 
@@ -176,7 +170,7 @@ module OnyxCord::REST::Application
       guild_id,
       :get,
       "#{OnyxCord::REST.api_base}/applications/#{application_id}/guilds/#{guild_id}/commands/permissions",
-      Authorization: token
+      headers: { Authorization: token }
     )
   end
 
@@ -188,9 +182,8 @@ module OnyxCord::REST::Application
       guild_id,
       :put,
       "#{OnyxCord::REST.api_base}/applications/#{application_id}/guilds/#{guild_id}/commands/#{command_id}/permissions",
-      { permissions: permissions }.to_json,
-      Authorization: token,
-      content_type: :json
+      body: { permissions: permissions }.to_json,
+      headers: { Authorization: token, content_type: :json }
     )
   end
 
@@ -202,9 +195,8 @@ module OnyxCord::REST::Application
       guild_id,
       :put,
       "#{OnyxCord::REST.api_base}/applications/#{application_id}/guilds/#{guild_id}/commands/permissions",
-      permissions.to_json,
-      Authorization: token,
-      content_type: :json
+      body: permissions.to_json,
+      headers: { Authorization: token, content_type: :json }
     )
   end
 
@@ -216,7 +208,7 @@ module OnyxCord::REST::Application
       guild_id,
       :get,
       "#{OnyxCord::REST.api_base}/applications/#{application_id}/guilds/#{guild_id}/commands/permissions",
-      Authorization: token
+      headers: { Authorization: token }
     )
   end
 
@@ -228,7 +220,7 @@ module OnyxCord::REST::Application
       guild_id,
       :get,
       "#{OnyxCord::REST.api_base}/applications/#{application_id}/guilds/#{guild_id}/commands/#{command_id}/permissions",
-      Authorization: token
+      headers: { Authorization: token }
     )
   end
 
@@ -240,7 +232,7 @@ module OnyxCord::REST::Application
       application_id,
       :get,
       "#{OnyxCord::REST.api_base}/applications/#{application_id}/emojis",
-      Authorization: token
+      headers: { Authorization: token }
     )
   end
 
@@ -252,7 +244,7 @@ module OnyxCord::REST::Application
       application_id,
       :get,
       "#{OnyxCord::REST.api_base}/applications/#{application_id}/emojis/#{emoji_id}",
-      Authorization: token
+      headers: { Authorization: token }
     )
   end
 
@@ -264,9 +256,8 @@ module OnyxCord::REST::Application
       application_id,
       :post,
       "#{OnyxCord::REST.api_base}/applications/#{application_id}/emojis",
-      { name: name, image: image }.to_json,
-      Authorization: token,
-      content_type: :json
+      body: { name: name, image: image }.to_json,
+      headers: { Authorization: token, content_type: :json }
     )
   end
 
@@ -278,9 +269,8 @@ module OnyxCord::REST::Application
       application_id,
       :patch,
       "#{OnyxCord::REST.api_base}/applications/#{application_id}/emojis/#{emoji_id}",
-      { name: name }.to_json,
-      Authorization: token,
-      content_type: :json
+      body: { name: name }.to_json,
+      headers: { Authorization: token, content_type: :json }
     )
   end
 
@@ -292,7 +282,7 @@ module OnyxCord::REST::Application
       application_id,
       :delete,
       "#{OnyxCord::REST.api_base}/applications/#{application_id}/emojis/#{emoji_id}",
-      Authorization: token
+      headers: { Authorization: token }
     )
   end
 
@@ -304,9 +294,8 @@ module OnyxCord::REST::Application
       nil,
       :patch,
       "#{OnyxCord::REST.api_base}/applications/@me",
-      { custom_install_url:, description:, role_connections_verification_url:, install_params:, integration_types_config:, flags:, interactions_endpoint_url:, tags:, event_webhooks_url:, event_webhooks_status:, event_webhooks_types:, icon:, cover_image: }.reject { |_, value| value == :undef }.to_json,
-      Authorization: token,
-      content_type: :json
+      body: { custom_install_url:, description:, role_connections_verification_url:, install_params:, integration_types_config:, flags:, interactions_endpoint_url:, tags:, event_webhooks_url:, event_webhooks_status:, event_webhooks_types:, icon:, cover_image: }.reject { |_, value| value == :undef }.to_json,
+      headers: { Authorization: token, content_type: :json }
     )
   end
 
@@ -318,7 +307,7 @@ module OnyxCord::REST::Application
       nil,
       :get,
       "#{OnyxCord::REST.api_base}/applications/#{application_id}/role-connections/metadata",
-      Authorization: token
+      headers: { Authorization: token }
     )
   end
 
@@ -330,9 +319,8 @@ module OnyxCord::REST::Application
       nil,
       :put,
       "#{OnyxCord::REST.api_base}/applications/#{application_id}/role-connections/metadata",
-      metadata.to_json,
-      Authorization: token,
-      content_type: :json
+      body: metadata.to_json,
+      headers: { Authorization: token, content_type: :json }
     )
   end
 end

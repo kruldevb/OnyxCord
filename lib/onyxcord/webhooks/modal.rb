@@ -33,15 +33,19 @@ class OnyxCord::Webhooks::Modal
     @components.map(&:to_h)
   end
 
-  # Add a label component to the view.
+  # Add a label component to the modal.
   # @see LabelBuilder#initialize
   def label(...)
-    @components << LabelBuilder.new(...)
+    builder = LabelBuilder.new(...)
+    @components << builder
+    builder
   end
 
-  # Add a text display component to the view.
-  # @see Webhooks::View::TextDisplayBuilder#initialize
+  # Add a text display component to the modal.
+  # @see OnyxCord::Webhooks::View::TextDisplayBuilder#initialize
   def text_display(...)
-    @components << OnyxCord::Webhooks::View::TextDisplayBuilder.new(...)
+    builder = OnyxCord::Webhooks::View::TextDisplayBuilder.new(...)
+    @components << builder
+    builder
   end
 end

@@ -12,7 +12,7 @@ module OnyxCord::REST::Server
       server_id,
       :get,
       "#{OnyxCord::REST.api_base}/guilds/#{server_id}/bans?#{query_string}",
-      Authorization: token
+      headers: { Authorization: token }
     )
   end
 
@@ -30,10 +30,8 @@ module OnyxCord::REST::Server
       server_id,
       :put,
       "#{OnyxCord::REST.api_base}/guilds/#{server_id}/bans/#{user_id}",
-      { delete_message_seconds: message_seconds }.to_json,
-      Authorization: token,
-      content_type: :json,
-      'X-Audit-Log-Reason': reason
+      body: { delete_message_seconds: message_seconds }.to_json,
+      headers: { Authorization: token, content_type: :json, 'X-Audit-Log-Reason': reason }
     )
   end
 
@@ -45,8 +43,7 @@ module OnyxCord::REST::Server
       server_id,
       :delete,
       "#{OnyxCord::REST.api_base}/guilds/#{server_id}/bans/#{user_id}",
-      Authorization: token,
-      'X-Audit-Log-Reason': reason
+      headers: { Authorization: token, 'X-Audit-Log-Reason': reason }
     )
   end
 
@@ -58,10 +55,8 @@ module OnyxCord::REST::Server
       server_id,
       :post,
       "#{OnyxCord::REST.api_base}/guilds/#{server_id}/bulk-ban",
-      { user_ids: users, delete_message_seconds: message_seconds }.compact.to_json,
-      content_type: :json,
-      Authorization: token,
-      'X-Audit-Log-Reason': reason
+      body: { user_ids: users, delete_message_seconds: message_seconds }.compact.to_json,
+      headers: { Authorization: token, content_type: :json, 'X-Audit-Log-Reason': reason }
     )
   end
 end

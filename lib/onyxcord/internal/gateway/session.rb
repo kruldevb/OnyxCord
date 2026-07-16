@@ -5,35 +5,35 @@ module OnyxCord
     module Gateway
       class Session
         attr_reader :session_id, :resume_gateway_url
-        attr_accessor :sequence
 
         def initialize(session_id, resume_gateway_url)
           @session_id = session_id
-          @sequence = 0
-          @suspended = false
-          @invalid = false
           @resume_gateway_url = resume_gateway_url
+          @state = :active
         end
 
         def suspend
-          @suspended = true
+          @state = :suspended if @state == :active
         end
 
         def suspended?
-          @suspended
+          @state == :suspended
         end
 
         def resume
-          @suspended = false
+          @state = :active if @state == :suspended
         end
 
         def invalidate
-          @invalid = true
-          @resume_gateway_url = nil
+          @state = :invalid
         end
 
         def invalid?
-          @invalid
+          @state == :invalid
+        end
+
+        def active?
+          @state == :active
         end
 
         def should_resume?

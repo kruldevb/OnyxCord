@@ -42,7 +42,7 @@ module OnyxCord::Events
                  e
                end
         end
-      ]
+      ].reduce(true, &:&)
     end
   end
 end

@@ -1,5 +1,54 @@
 # Changelog
 
+## Unreleased
+
+### Breaking changes — `OnyxCord::Light`
+
+- **`LightBot` sem suporte a token de conta de usuário.** `LightBot.new(token)` sem `token_type:` agora rejeita tokens não-prefixados com `OnyxCord::Light::UserTokenRejected`. Automatizar contas normais (self-bot) é proibido pelo Discord e pode causar bloqueio da conta. Passe `token_type: :bot` para bot tokens ou `token_type: :bearer` para access tokens OAuth2.
+
+- **`require 'onyxcord/light'` não carrega mais modelos pesados.** `Message`, `Channel`, `VoiceState`, `Interaction`, `Webhook`, `Member`, `Role`, `Server`, `Emoji`, `ActivitySet` e 28 outros arquivos (~9.971 linhas) não são mais carregados pelo require da implementação Light. Esta é uma mudança de carregamento, não de API pública — a funcionalidade existente de `LightBot`, `LightProfile`, `LightServer` e `Connection` é preservada.
+
+- **API de credenciais agora explícita.** Substituída a heurística `token.include?('.')` por `token_type: :bot` ou `token_type: :bearer`. Tokens prefixados (`Bot ...`, `Bearer ...`) ainda são aceitos sem `token_type`. Objetos OAuth2 com método `#token` são aceitos.
+
+- **`LightBot#join` removido.** `POST /invites/{code}` foi removido da documentação pública do Discord e bots não podem ser adicionados por aí. Use `LightBot.oauth_authorize_url(client_id, ...)` para gerar a URL OAuth2 correta.
+
+- **`LightProfile` e `LightServer` não incluem mais `UserAttributes`/`ServerAttributes`.** A implementação agora usa mixins próprios (`LightUserAttributes`, `LightServerAttributes`) que não puxam a árvore de modelos.
+
+### Novas features — `OnyxCord::Light`
+
+- **`Credential` polimórfica com `token_type` explícito.** Nova classe interna `Credential` (subclasses `BotCredential`, `BearerCredential`). Construa instâncias via `LightBot.new(token, token_type: :bot/:bearer, scopes: %i[identify guilds])`.
+
+- **`MissingScopeError`** — erro claro antes do request quando OAuth2 scopes declarados não incluem o necessário para a operação.
+
+- **Método `oauth_authorize_url`** — substitui o fluxo `#join` com URL OAuth2 completa (client_id, permissions, guild_id, scope).
+
+- **Todos os campos OAuth2 agora preservados em `LightProfile`** — `global_name`, `public_flags`, `banner`, `accent_color`, `locale`, `avatar_decoration_data`, `collectibles`, `primary_guild`.
+
+- **`LightProfile#email_scope?`** — indica se o scope `email` foi concedido, diferenciando "não verificado" de "scope não autorizado".
+
+- **Validação de schema com mensagens descritivas** — `id` ou `username` ausente agora levanta `ArgumentError` com contexto (em vez de `nil.to_i` → ID 0 silencioso).
+
+- **Campos de Connection expandidos** — `verified`, `friend_sync`, `show_activity`, `two_way_link`, `visibility` preservados.
+
+- **Tipos de conexão como String congelada** — `Connection#type` retorna String (ex: `"twitch"`). `Connection#type_sym` retorna Symbol para tipos conhecidos (ex: `:twitch`). Evita alocar Symbols de fontes externas.
+
+- **`IntegrationAccount`** — objeto mínimo para dados de conta de integração (id, name, type), substituindo a alocação anterior de um Hash reestruturado + `Connection` fake.
+
+- **Coleções imutáveis** — `servers` e `integrations` retornam arrays congelados.
+
+- **`inspect` seguro** — `LightBot#inspect` e `Credential#inspect` nunca expõem o token raw.
+
+### Correções — `OnyxCord::Light`
+
+- `LightProfile` não crasha mais ao chamar `staff?` ou outras flags com payload que não inclui `public_flags`.
+- `banner_url` não faz mais request REST escondido — usa dados já presentes no payload de `/users/@me`.
+- `integrations` agora é tratado como campo opcional — conexão sem `integrations` cria coleção vazia congelada.
+- Booleanos opcionais (`revoked`, `owner`, `verified`) retornam `nil` quando ausentes, significando "desconhecido" (em vez de `false` ou crash).
+
+### Refatoração interna
+
+- **`lib/onyxcord/core/bootstrap.rb`** — extraído do `onyxcord.rb` com `DISCORD_EPOCH` e `id_compare?` para permitir que `onyxcord/light` carregue as constantes mínimas sem puxar o gateway nem o cache.
+
 ## 3.2.8 - 2026-07-04
 
 ### Correções

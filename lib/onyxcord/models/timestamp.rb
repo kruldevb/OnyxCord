@@ -3,35 +3,46 @@
 module OnyxCord
   # A timestamp referenced in a message via markdown.
   class TimestampMarkdown
-    # Mapping of timestamp styles.
+    # Canonical symbol => specifier mapping, single source of truth.
+    # Also mirrors {OnyxCord::TIMESTAMP_STYLES} for backward compatibility.
     STYLES = {
-      short_time: 't', # 16:20
-      long_time: 'T', # 16:20:30
-      short_date: 'd', # 20/04/2021
-      long_date: 'D', # 20 April 2021
-      short_datetime: 'f', # 20 April 2021 16:20
-      long_datetime: 'F', # Tuesday, 20 April 2021 16:20
-      relative: 'R', # 2 months ago
-      simple_datetime: 's', # 20/04/2021, 16:20
-      medium_datetime: 'S' # 20/04/2021, 16:20:30
+      short_time: 't',
+      long_time: 'T',
+      short_date: 'd',
+      long_date: 'D',
+      short_datetime: 'f',
+      long_datetime: 'F',
+      relative: 'R',
+      simple_datetime: 's',
+      medium_datetime: 'S',
     }.freeze
+
+    # Reverse map: specifier => canonical symbol
+    STYLE_BY_CODE = STYLES.invert.freeze
 
     # @return [Time] the time that the timestamp is referencing.
     attr_reader :time
 
-    # @!visibility private
+    # @param time [Time, Integer]
+    # @param style [Symbol, String] one of the canonical style symbols or the
+    #   single-char specifier (e.g. `:relative` or `'R'`).
     def initialize(time, style)
       @time = time
-      @style = style
+      @style = normalize_style(style) || 'f'
     end
 
-    # Get the specifier used to determine the style of the timestamp.
-    # @return [String] the formatting specifier used to display the timestamp.
+    # Get the one-letter specifier string (e.g. `f`).
+    # @return [String]
     def style
-      @style || 'f'
+      @style
     end
 
-    # Get a string that will allow you to display the time in the Discord client.
+    # Human-readable style name (Symbol).
+    # @return [Symbol, nil]
+    def style_name
+      STYLE_BY_CODE[@style]
+    end
+
     # @return [String] The timestamp serialized as a string for the Discord client.
     def to_s
       OnyxCord.timestamp(@time, @style)
@@ -42,27 +53,36 @@ module OnyxCord
       "<TimestampMarkdown time=#{@time.to_i} style=\"#{style}\">"
     end
 
-    # @!method short_time?
-    #   @return [true, false] whether or not the timestamp is displayed in a format such as `16:20`.
-    # @!method long_time?
-    #   @return [true, false] whether or not the timestamp is displayed in a format such as `16:20:30`.
-    # @!method short_date?
-    #   @return [true, false] whether or not the timestamp is displayed in a format such as `20/04/2021`.
-    # @!method long_date?
-    #   @return [true, false] whether or not the timestamp is displayed in a format such as `20 April 2021`.
-    # @!method short_datetime?
-    #   @return [true, false] whether or not the timestamp is displayed in a format such as `20 April 2021 16:20`.
-    # @!method long_datetime?
-    #   @return [true, false] whether or not the timestamp is displayed in a format such as `Tuesday, 20 April 2021 16:20`.
-    # @!method relative?
-    #   @return [true, false] whether or not the timestamp is displayed in a format such as `2 months ago`.
-    # @!method simple_datetime?
-    #   @return [true, false] whether or not the timestamp is displayed in a format such as `20/04/2021, 16:20`.
-    # @!method medium_datetime?
-    #   @return [true, false] whether or not the timestamp is displayed in a format such as ` 20/04/2021, 16:20:30`.
-    STYLES.each do |name, value|
+    # Dynamic style predicates
+    STYLES.each do |name, code|
       define_method("#{name}?") do
-        style == value
+        style == code
+      end
+    end
+
+    private
+
+    # Normalize a style argument to the single-char code.
+    # Accepts:
+    #  * Symbols that match {STYLES} keys (normalized to specifier).
+    #  * Single-char valid specifiers.
+    #  * nil → uses default.
+    # Raises ArgumentError on unrecognized input.
+    def normalize_style(input)
+      return nil if input.nil?
+
+      case input
+      when Symbol
+        code = STYLES[input]
+        raise ArgumentError, "Unknown timestamp style: :#{input}" unless code
+
+        code
+      when String
+        return input if STYLE_BY_CODE.key?(input)
+
+        raise ArgumentError, "Invalid timestamp style specifier: #{input.inspect}"
+      else
+        raise ArgumentError, "Expected Symbol or String style, got #{input.class}"
       end
     end
   end

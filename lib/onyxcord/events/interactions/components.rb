@@ -142,7 +142,8 @@ module OnyxCord::Events
     def initialize(data, bot)
       super
 
-      @values = data['data']['values'].map { |e| bot.user(e) }
+      resolved_users = data.dig('data', 'resolved', 'users') || {}
+      @values = data['data']['values'].map { |e| bot.ensure_user(resolved_users[e]) }
     end
   end
 
@@ -163,7 +164,9 @@ module OnyxCord::Events
     def initialize(data, bot)
       super
 
-      @values = data['data']['values'].map { |e| bot.server(data['guild_id']).role(e) }
+      resolved_roles = data.dig('data', 'resolved', 'roles') || {}
+      server = bot.server(data['guild_id'])
+      @values = data['data']['values'].map { |e| server.role(e.to_i) }
     end
   end
 
@@ -184,8 +187,9 @@ module OnyxCord::Events
     def initialize(data, bot)
       super
 
-      users = data['data']['resolved']['users'].map { |_, user| @bot.ensure_user(user) }
-      roles = data['data']['resolved']['roles'] ? data['data']['resolved']['roles'].keys.map { |e| bot.server(data['guild_id']).role(e) } : []
+      resolved = data.dig('data', 'resolved') || {}
+      users = (resolved['users'] || {}).map { |_, user| @bot.ensure_user(user) }
+      roles = (resolved['roles'] || {}).map { |_, role| OnyxCord::Role.new(role, @bot) }
       @values = { users: users, roles: roles }
     end
   end
@@ -207,7 +211,8 @@ module OnyxCord::Events
     def initialize(data, bot)
       super
 
-      @values = data['data']['values'].map { |e| bot.channel(e, bot.server(data['guild_id'])) }
+      resolved_channels = data.dig('data', 'resolved', 'channels') || {}
+      @values = data['data']['values'].map { |e| bot.ensure_channel(resolved_channels[e]) }
     end
   end
 

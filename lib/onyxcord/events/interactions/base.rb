@@ -118,14 +118,14 @@ module OnyxCord::Events
       end
 
       resolved_data['channels']&.each do |id, data|
-        data['guild_id'] = @interaction.server_id
-        @resolved[:channels][id.to_i] = OnyxCord::Channel.new(data, @bot)
+        channel_data = data.merge('guild_id' => @interaction.server_id)
+        @resolved[:channels][id.to_i] = OnyxCord::Channel.new(channel_data, @bot)
       end
 
       resolved_data['members']&.each do |id, data|
-        data['user'] = resolved_data['users'][id]
-        data['guild_id'] = @interaction.server_id
-        @resolved[:members][id.to_i] = OnyxCord::Member.new(data, nil, @bot)
+        user_data = resolved_data.dig('users', id)
+        member_data = data.merge('user' => user_data, 'guild_id' => @interaction.server_id)
+        @resolved[:members][id.to_i] = OnyxCord::Member.new(member_data, nil, @bot)
       end
 
       resolved_data['messages']&.each do |id, data|
@@ -150,7 +150,7 @@ module OnyxCord::Events
         matches_all(@attributes[:type], event.type) do |a, e|
           a == case a
                when String, Symbol
-                 OnyxCord::Interactions::TYPES[e.to_sym]
+                 OnyxCord::Interaction::TYPES[e.to_sym]
                else
                  e
                end

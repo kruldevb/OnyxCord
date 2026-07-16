@@ -6,26 +6,29 @@ module OnyxCord::REST::Server
   # Get server prune count
   # https://discord.com/developers/docs/resources/guild#get-guild-prune-count
   def prune_count(token, server_id, days)
+    query = URI.encode_www_form({ days: days })
     OnyxCord::REST.request(
       :guilds_sid_prune,
       server_id,
       :get,
-      "#{OnyxCord::REST.api_base}/guilds/#{server_id}/prune?days=#{days}",
-      Authorization: token
+      "#{OnyxCord::REST.api_base}/guilds/#{server_id}/prune?#{query}",
+      headers: { Authorization: token }
     )
   end
 
   # Begin server prune
   # https://discord.com/developers/docs/resources/guild#begin-guild-prune
-  def begin_prune(token, server_id, days, reason = nil)
+  def begin_prune(token, server_id, days, reason = nil, compute_prune_count: nil, include_roles: nil)
+    body = { days: days }
+    body[:compute_prune_count] = compute_prune_count unless compute_prune_count.nil?
+    body[:include_roles] = include_roles unless include_roles.nil?
     OnyxCord::REST.request(
       :guilds_sid_prune,
       server_id,
       :post,
       "#{OnyxCord::REST.api_base}/guilds/#{server_id}/prune",
-      { days: days },
-      Authorization: token,
-      'X-Audit-Log-Reason': reason
+      body: body.to_json,
+      headers: { Authorization: token, content_type: :json, 'X-Audit-Log-Reason': reason }
     )
   end
 
@@ -37,19 +40,20 @@ module OnyxCord::REST::Server
       server_id,
       :get,
       "#{OnyxCord::REST.api_base}/guilds/#{server_id}/invites",
-      Authorization: token
+      headers: { Authorization: token }
     )
   end
 
   # Gets a server's audit logs
   # https://discord.com/developers/docs/resources/audit-log#get-guild-audit-log
   def audit_logs(token, server_id, limit, user_id = nil, action_type = nil, before = nil)
+    query = URI.encode_www_form({ limit: limit, user_id: user_id, action_type: action_type, before: before }.compact)
     OnyxCord::REST.request(
       :guilds_sid_auditlogs,
       server_id,
       :get,
-      "#{OnyxCord::REST.api_base}/guilds/#{server_id}/audit-logs?limit=#{limit}#{"&user_id=#{user_id}" if user_id}#{"&action_type=#{action_type}" if action_type}#{"&before=#{before}" if before}",
-      Authorization: token
+      "#{OnyxCord::REST.api_base}/guilds/#{server_id}/audit-logs?#{query}",
+      headers: { Authorization: token }
     )
   end
 
@@ -61,7 +65,7 @@ module OnyxCord::REST::Server
       server_id,
       :get,
       "#{OnyxCord::REST.api_base}/guilds/#{server_id}/integrations",
-      Authorization: token
+      headers: { Authorization: token }
     )
   end
 
@@ -73,9 +77,8 @@ module OnyxCord::REST::Server
       server_id,
       :post,
       "#{OnyxCord::REST.api_base}/guilds/#{server_id}/integrations",
-      { type: type, id: id },
-      Authorization: token,
-      'X-Audit-Log-Reason': reason
+      body: { type: type, id: id }.to_json,
+      headers: { Authorization: token, content_type: :json, 'X-Audit-Log-Reason': reason }
     )
   end
 
@@ -87,9 +90,8 @@ module OnyxCord::REST::Server
       server_id,
       :patch,
       "#{OnyxCord::REST.api_base}/guilds/#{server_id}/integrations/#{integration_id}",
-      { expire_behavior: expire_behavior, expire_grace_period: expire_grace_period, enable_emoticons: enable_emoticons }.to_json,
-      Authorization: token,
-      content_type: :json
+      body: { expire_behavior: expire_behavior, expire_grace_period: expire_grace_period, enable_emoticons: enable_emoticons }.to_json,
+      headers: { Authorization: token, content_type: :json }
     )
   end
 
@@ -101,8 +103,7 @@ module OnyxCord::REST::Server
       server_id,
       :delete,
       "#{OnyxCord::REST.api_base}/guilds/#{server_id}/integrations/#{integration_id}",
-      Authorization: token,
-      'X-Audit-Log-Reason': reason
+      headers: { Authorization: token, 'X-Audit-Log-Reason': reason }
     )
   end
 
@@ -114,8 +115,7 @@ module OnyxCord::REST::Server
       server_id,
       :post,
       "#{OnyxCord::REST.api_base}/guilds/#{server_id}/integrations/#{integration_id}/sync",
-      nil,
-      Authorization: token
+      headers: { Authorization: token }
     )
   end
 
@@ -127,7 +127,7 @@ module OnyxCord::REST::Server
       server_id,
       :get,
       "#{OnyxCord::REST.api_base}/guilds/#{server_id}/widget",
-      Authorization: token
+      headers: { Authorization: token }
     )
   end
   alias embed widget
@@ -140,10 +140,8 @@ module OnyxCord::REST::Server
       server_id,
       :patch,
       "#{OnyxCord::REST.api_base}/guilds/#{server_id}/widget",
-      { enabled: enabled, channel_id: channel_id }.to_json,
-      Authorization: token,
-      'X-Audit-Log-Reason': reason,
-      content_type: :json
+      body: { enabled: enabled, channel_id: channel_id }.to_json,
+      headers: { Authorization: token, content_type: :json, 'X-Audit-Log-Reason': reason }
     )
   end
   alias modify_embed modify_widget
@@ -156,7 +154,7 @@ module OnyxCord::REST::Server
       server_id,
       :get,
       "#{OnyxCord::REST.api_base}/guilds/#{server_id}/regions",
-      Authorization: token
+      headers: { Authorization: token }
     )
   end
 
@@ -168,7 +166,7 @@ module OnyxCord::REST::Server
       server_id,
       :get,
       "#{OnyxCord::REST.api_base}/guilds/#{server_id}/webhooks",
-      Authorization: token
+      headers: { Authorization: token }
     )
   end
 end

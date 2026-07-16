@@ -12,9 +12,7 @@ module OnyxCord::REST::Channel
       channel_id,
       :put,
       "#{OnyxCord::REST.api_base}/channels/#{channel_id}/messages/#{message_id}/reactions/#{emoji}/@me",
-      nil,
-      Authorization: token,
-      content_type: :json
+      headers: { Authorization: token, content_type: :json }
     )
   end
 
@@ -27,7 +25,7 @@ module OnyxCord::REST::Channel
       channel_id,
       :delete,
       "#{OnyxCord::REST.api_base}/channels/#{channel_id}/messages/#{message_id}/reactions/#{emoji}/@me",
-      Authorization: token
+      headers: { Authorization: token }
     )
   end
 
@@ -40,7 +38,7 @@ module OnyxCord::REST::Channel
       channel_id,
       :delete,
       "#{OnyxCord::REST.api_base}/channels/#{channel_id}/messages/#{message_id}/reactions/#{emoji}/#{user_id}",
-      Authorization: token
+      headers: { Authorization: token }
     )
   end
 
@@ -54,7 +52,7 @@ module OnyxCord::REST::Channel
       channel_id,
       :get,
       "#{OnyxCord::REST.api_base}/channels/#{channel_id}/messages/#{message_id}/reactions/#{emoji}?#{query_string}",
-      Authorization: token
+      headers: { Authorization: token }
     )
   end
 
@@ -66,7 +64,7 @@ module OnyxCord::REST::Channel
       channel_id,
       :delete,
       "#{OnyxCord::REST.api_base}/channels/#{channel_id}/messages/#{message_id}/reactions",
-      Authorization: token
+      headers: { Authorization: token }
     )
   end
 
@@ -80,7 +78,7 @@ module OnyxCord::REST::Channel
       channel_id,
       :delete,
       "#{OnyxCord::REST.api_base}/channels/#{channel_id}/messages/#{message_id}/reactions/#{emoji}",
-      Authorization: token
+      headers: { Authorization: token }
     )
   end
 end

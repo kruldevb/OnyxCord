@@ -125,18 +125,19 @@ module OnyxCord
       @channel = bot.ensure_channel(data['channel']) if data['channel']
       @user = begin
         if data['member'] && data['member']['user']
-          data['member']['guild_id'] = @server_id
+          member_data = data['member'].dup.merge('guild_id' => @server_id)
           server = bot.servers ? bot.servers[@server_id] : nil
-          OnyxCord::Member.new(data['member'], server, bot)
+          OnyxCord::Member.new(member_data, server, bot)
         elsif data['user']
           bot.ensure_user(data['user'])
         end
-      rescue StandardError => e
-        OnyxCord::LOGGER.error("Failed to parse interaction user/member: #{e}")
+      rescue OnyxCord::Errors::OnyxCordError, NoMethodError, TypeError => e
+        @bot.logger.error("Failed to parse interaction user/member: #{e.message}")
         nil
       end
       @token = data['token']
       @version = data['version']
+      @data = data['data'] || {}
       @components = @data['components']&.filter_map { |component| Components.from_data(component, @bot) } || []
       @application_permissions = Permissions.new(data['app_permissions']) if data['app_permissions']
       @user_locale = data['locale']
@@ -396,12 +397,23 @@ module OnyxCord
 
     # @return [true, false] whether the application was installed by the user who initiated this interaction.
     def user_integration?
+      return false unless @user
+      return false unless @integration_owners
+
       @integration_owners[1] == @user.id
     end
 
     # @return [true, false] whether the application was installed by the server where this interaction originates from.
     def server_integration?
-      @server_id ? @integration_owners[0] == @server_id : false
+      return false unless @server_id
+      return false unless @integration_owners
+
+      @integration_owners[0] == @server_id
+    end
+
+    # The inspect method does not expose the interaction token.
+    def inspect
+      "<Interaction type=#{@type} id=#{@id}>"
     end
 
     private

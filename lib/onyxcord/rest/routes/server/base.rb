@@ -6,12 +6,13 @@ module OnyxCord::REST::Server
   # Get a server's data
   # https://discord.com/developers/docs/resources/guild#get-guild
   def resolve(token, server_id, with_counts = nil)
+    query = URI.encode_www_form({ with_counts: with_counts ? 'true' : nil }.compact)
     OnyxCord::REST.request(
       :guilds_sid,
       server_id,
       :get,
-      "#{OnyxCord::REST.api_base}/guilds/#{server_id}#{'?with_counts=true' if with_counts}",
-      Authorization: token
+      "#{OnyxCord::REST.api_base}/guilds/#{server_id}#{"?#{query}" unless query.empty?}",
+      headers: { Authorization: token }
     )
   end
 
@@ -23,10 +24,8 @@ module OnyxCord::REST::Server
       server_id,
       :patch,
       "#{OnyxCord::REST.api_base}/guilds/#{server_id}",
-      { name: name, region: region, icon: icon, afk_channel_id: afk_channel_id, afk_timeout: afk_timeout, splash: splash, default_message_notifications: default_message_notifications, verification_level: verification_level, explicit_content_filter: explicit_content_filter, system_channel_id: system_channel_id }.to_json,
-      Authorization: token,
-      content_type: :json,
-      'X-Audit-Log-Reason': reason
+      body: { name: name, region: region, icon: icon, afk_channel_id: afk_channel_id, afk_timeout: afk_timeout, splash: splash, default_message_notifications: default_message_notifications, verification_level: verification_level, explicit_content_filter: explicit_content_filter, system_channel_id: system_channel_id }.to_json,
+      headers: { Authorization: token, content_type: :json, 'X-Audit-Log-Reason': reason }
     )
   end
 
@@ -38,10 +37,8 @@ module OnyxCord::REST::Server
       server_id,
       :patch,
       "#{OnyxCord::REST.api_base}/guilds/#{server_id}",
-      { name:, region:, verification_level:, default_message_notifications:, explicit_content_filter:, afk_channel_id:, afk_timeout:, icon:, splash:, discovery_splash:, banner:, system_channel_id:, system_channel_flags:, rules_channel_id:, public_updates_channel_id:, preferred_locale:, features:, description:, premium_progress_bar_enabled:, safety_alerts_channel_id: }.reject { |_, value| value == :undef }.to_json,
-      Authorization: token,
-      content_type: :json,
-      'X-Audit-Log-Reason': reason
+      body: { name:, region:, verification_level:, default_message_notifications:, explicit_content_filter:, afk_channel_id:, afk_timeout:, icon:, splash:, discovery_splash:, banner:, system_channel_id:, system_channel_flags:, rules_channel_id:, public_updates_channel_id:, preferred_locale:, features:, description:, premium_progress_bar_enabled:, safety_alerts_channel_id: }.reject { |_, value| value == :undef }.to_json,
+      headers: { Authorization: token, content_type: :json, 'X-Audit-Log-Reason': reason }
     )
   end
 
@@ -53,10 +50,8 @@ module OnyxCord::REST::Server
       server_id,
       :put,
       "#{OnyxCord::REST.api_base}/guilds/#{server_id}/incident-actions",
-      { invites_disabled_until:, dms_disabled_until: }.reject { |_, value| value == :undef }.to_json,
-      Authorization: token,
-      content_type: :json,
-      'X-Audit-Log-Reason': reason
+      body: { invites_disabled_until:, dms_disabled_until: }.reject { |_, value| value == :undef }.to_json,
+      headers: { Authorization: token, content_type: :json, 'X-Audit-Log-Reason': reason }
     )
   end
 
@@ -68,10 +63,8 @@ module OnyxCord::REST::Server
       server_id,
       :patch,
       "#{OnyxCord::REST.api_base}/guilds/#{server_id}/widget",
-      { enabled:, channel_id: }.reject { |_, value| value == :undef }.to_json,
-      content_type: :json,
-      Authorization: token,
-      'X-Audit-Log-Reason': reason
+      body: { enabled:, channel_id: }.reject { |_, value| value == :undef }.to_json,
+      headers: { Authorization: token, content_type: :json, 'X-Audit-Log-Reason': reason }
     )
   end
 end

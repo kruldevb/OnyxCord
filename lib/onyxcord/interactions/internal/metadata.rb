@@ -8,26 +8,9 @@ module OnyxCord
     class Metadata
       include IDObject
 
-      # @return [Integer] the type of the interaction.
-      attr_reader :type
-
-      # @return [User] the user that initiated the interaction.
-      attr_reader :user
-
-      # @return [User, nil] the user that the command was ran on.
-      attr_reader :target_user
-
-      # @return [Integer, nil] the ID of the message the command was ran on.
-      attr_reader :target_message_id
-
-      # @return [Metadata, nil] the metadata for the interaction that opened the modal.
-      attr_reader :triggering_metadata
-
-      # @return [Integer, nil] the ID of the message that contained the interactive message component.
-      attr_reader :interacted_message_id
-
-      # @return [Integer, nil] the ID the original response message; only present on follow-up messages.
-      attr_reader :original_response_message_id
+      attr_reader :type, :user, :target_user, :target_message_id,
+                  :triggering_metadata, :interacted_message_id,
+                  :original_response_message_id
 
       # @!visibility private
       def initialize(data, message, bot)
@@ -42,52 +25,52 @@ module OnyxCord
         @interacted_message_id = data['interacted_message_id']&.to_i
         @original_response_message_id = data['original_response_message_id']&.to_i
         @integration_owners = data['authorizing_integration_owners']&.to_h { |key, value| [key.to_i, value.to_i] }
+
+        # INT-0303: sentinel para buscas negativas — permite memorizar "não encontrado"
+        @target_message_cache = NOT_FOUND
+        @interacted_message_cache = NOT_FOUND
+        @original_response_message_cache = NOT_FOUND
       end
 
-      # Check if the interaction was triggered by a user by installed the application.
-      # @return [true, false] whether or not the application was installed by the user
-      #   who initiated this interaction.
+      # INT-0303: sentinel marker
+      NOT_FOUND = Object.new.freeze
+
       def user_integration?
         @integration_owners[1] == @user.id
       end
 
-      # Check if the interaction was triggered by a server by installed the application.
-      # @return [true, false] whether or not the application was installed by the server
-      #   where this interaction originates from.
+      # INT-0302: server_integration? usa cache do @message.server se disponível
       def server_integration?
-        @integration_owners[0] == @message.server.id
+        sv = @message.respond_to?(:server) ? @message.server : nil
+        sv_id = sv&.id || (@message.respond_to?(:server_id) ? @message.server_id : nil)
+        return false unless sv_id
+        @integration_owners[0] == sv_id
       end
 
-      # Attempt to fetch the target message of the interaction.
-      # @return [Message, nil] the target message of the interaction, or `nil` if it couldn't be found.
+      # INT-0303: target_message — memoriza nil, não repite REST
       def target_message
-        return unless @target_message_id
+        return @target_message_cache unless @target_message_cache.equal?(NOT_FOUND)
+        return @target_message_cache = nil unless @target_message_id
 
-        @target_message ||= @message.channel.message(@target_message_id)
+        @target_message_cache = fetch_message(@target_message_id)
       end
 
-      # Attempt to fetch the message that contained the interatctive component.
-      # @return [Message, nil] the interacted message with the component, or `nil` if it couldn't be found.
+      # INT-0303: interacted_message — memoriza nil
       def interacted_message
-        return unless @interacted_message_id
+        return @interacted_message_cache unless @interacted_message_cache.equal?(NOT_FOUND)
+        return @interacted_message_cache = nil unless @interacted_message_id
 
-        @interacted_message ||= @message.channel.message(@interacted_message_id)
+        @interacted_message_cache = fetch_message(@interacted_message_id)
       end
 
-      # Attempt to fetch the original response message of the interaction.
-      # @return [Message, nil] the original response message of the interaction, or `nil` if it couldn't be found.
+      # INT-0303: original_response_message — memoriza nil
       def original_response_message
-        return unless @original_response_message_id
+        return @original_response_message_cache unless @original_response_message_cache.equal?(NOT_FOUND)
+        return @original_response_message_cache = nil unless @original_response_message_id
 
-        @original_response_message ||= @message.channel.message(@original_response_message_id)
+        @original_response_message_cache = fetch_message(@original_response_message_id)
       end
 
-      # @!method command?
-      #  @return [true, false] whether or not the interaction metadata is for an application command.
-      # @!method component?
-      #  @return [true, false] whether or not the interaction metadata is for a message component.
-      # @!method modal_submit?
-      #  @return [true, false] whether or not the interaction metadata is for a modal submission.
       def command?
         @type == 1
       end
@@ -100,9 +83,25 @@ module OnyxCord
         @type == 5
       end
 
-      # @!visibility private
+      # INT-0306: inspect redigido — IDs e tipos, sem PII
       def inspect
-        "<Interactions::Metadata id=#{@id} type=#{@type} user=#{@user.inspect} target_user=#{@target_user.inspect}>"
+        "<Interactions::Metadata id=#{@id} type=#{@type} " \
+          "user_id=#{@user&.id.inspect} target_user_id=#{@target_user&.id.inspect} " \
+          "target_message_id=#{@target_message_id.inspect} " \
+          "interacted_message_id=#{@interacted_message_id.inspect} " \
+          "original_response_message_id=#{@original_response_message_id.inspect}>"
+      end
+
+      private
+
+      # INT-0303: helper centralizado — usa channel do message sem REST extra se possível
+      def fetch_message(msg_id)
+        ch = @message.respond_to?(:channel) ? @message.channel : nil
+        return nil unless ch
+
+        ch.message(msg_id)
+      rescue StandardError
+        nil
       end
     end
   end

@@ -13,9 +13,16 @@ begin
                           require 'onyxcord/voice/sodium'
                         end
 rescue LoadError
-  puts "libsodium not available! You can continue to use onyxcord as normal but voice support won't work.
-        Read https://github.com/kruldevb/OnyxCord/wiki/Installing-libsodium for more details."
+  warn "onyxcord: libsodium not available — voice support disabled. See https://github.com/kruldevb/OnyxCord/wiki/Installing-libsodium"
   LIBSODIUM_AVAILABLE = false
+rescue RuntimeError => e
+  warn "onyxcord: libsodium initialization failed — voice support disabled: #{e.message}"
+  LIBSODIUM_AVAILABLE = false
+end
+
+# Returns whether voice support is available (libsodium loaded and initialized)
+def self.voice_available?
+  LIBSODIUM_AVAILABLE == true
 end
 
 module OnyxCord::Voice
@@ -28,8 +35,8 @@ module OnyxCord::Voice
   # @deprecated Discord no longer supports unencrypted voice communication.
   PLAIN_MODE = 'plain'
 
-  # Encryption modes supported by Discord
-  ENCRYPTION_MODES = %w[aead_xchacha20_poly1305_rtpsize].freeze
+  # Encryption modes supported by Discord (XChaCha20 preferred, AES-256-GCM as fallback)
+  ENCRYPTION_MODES = %w[aead_xchacha20_poly1305_rtpsize aead_aes256gcm_rtpsize].freeze
 
   require 'onyxcord/voice/network/udp'
   require 'onyxcord/voice/network/websocket'

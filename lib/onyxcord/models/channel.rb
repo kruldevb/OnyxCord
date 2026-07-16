@@ -187,7 +187,8 @@ module OnyxCord
           @recipients << Recipient.new(recipient_user, self, bot)
         end
         if pm?
-          @name = @recipients.first.username
+          first_recipient = @recipients.first
+          @name = first_recipient ? first_recipient.username : nil
         else
           @name = data['name']
           @owner_id = data['owner_id']
@@ -1312,7 +1313,7 @@ module OnyxCord
         message = "Attempted to bulk_delete message #{e} which is too old (min = #{min_snowflake})"
         raise ArgumentError, message if strict
 
-        OnyxCord::LOGGER.warn(message)
+        @bot.logger.warn(message)
         true
       end
 

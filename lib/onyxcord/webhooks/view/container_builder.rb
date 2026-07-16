@@ -1,13 +1,15 @@
 # frozen_string_literal: true
 
+require 'onyxcord/utils/colour_rgb'
+
 class OnyxCord::Webhooks::View
   class ContainerBuilder
     # Create a container component.
+    #
     # @param id [Integer, nil] The unique 32-bit ID of the container component.
-    # @param colour [Array, Integer, String, ColourRGB, nil] The accent colour of the container
-    #   component. This argument can be passed via the American spelling (`color:`) as well.
-    # @param spoiler [true, false] Whether or not to apply a spoiler label to the container component.
-    # @yieldparam builder [ContainerBuilder] Yields the initialized container component.
+    # @param color [Array, Integer, String, ColourRGB, nil] The accent colour.
+    # @param spoiler [true, false] Whether to apply a spoiler label.
+    # @yieldparam builder [ContainerBuilder] Yields the initialized container.
     def initialize(id: nil, color: nil, colour: nil, spoiler: false)
       @id = id
       @spoiler = spoiler
@@ -19,8 +21,10 @@ class OnyxCord::Webhooks::View
 
     # Add a row component to the container.
     # @see RowBuilder#initialize
-    def row(...)
-      @components << RowBuilder.new(...)
+    def row(id: nil, &block)
+      builder = RowBuilder.new(id: id, &block)
+      @components << builder
+      builder
     end
 
     # Add a file component to the container.
@@ -33,8 +37,10 @@ class OnyxCord::Webhooks::View
 
     # Add a section component to the container.
     # @see SectionBuilder#initialize
-    def section(...)
-      @components << SectionBuilder.new(...)
+    def section(id: nil, &block)
+      builder = SectionBuilder.new(id: id, &block)
+      @components << builder
+      builder
     end
 
     # Add a separator component to the container.
@@ -51,18 +57,33 @@ class OnyxCord::Webhooks::View
 
     # Add a media gallery component to the container.
     # @see MediaGalleryBuilder#initialize
-    def media_gallery(*items, id: nil, &block)
-      @components << MediaGalleryBuilder.new(*items, id: id, &block)
+    def media_gallery(*items, id: nil)
+      @components << MediaGalleryBuilder.new(*items, id: id)
     end
 
     # Set the color of the container.
-    # @param colour [Array, Integer, String, ColourRGB, nil] The accent colour of the container component, or `nil` to clear the accent colour.
+    #
+    # @param colour [Array, Integer, String, ColourRGB, nil] The accent
+    #   colour, or +nil+ to clear.
     def colour=(colour)
       @colour = case colour
-                when Array
-                  (colour[0] << 16) | (colour[1] << 8) | colour[2]
+                when OnyxCord::ColourRGB
+                  colour.combined
+                when Integer
+                  OnyxCord::ColourRGB.new(colour) # validates range
+                  colour
                 when String
-                  colour.delete('#').to_i(16)
+                  OnyxCord::ColourRGB.new(colour).combined
+                when Array
+                  raise ArgumentError, 'Colour tuple must have three values!' unless colour.length == 3
+                  colour.each_with_index do |c, i|
+                    unless c.is_a?(Integer) && c.between?(0, 255)
+                      raise ArgumentError, "RGB component #{i} must be an Integer in 0..255, got: #{c.inspect}"
+                    end
+                  end
+                  (colour[0] << 16) | (colour[1] << 8) | colour[2]
+                when nil
+                  nil
                 else
                   colour&.to_i
                 end
@@ -75,6 +96,4 @@ class OnyxCord::Webhooks::View
       { type: COMPONENT_TYPES[:container], id: @id, accent_color: @colour, spoiler: @spoiler, components: @components.map(&:to_h) }.compact
     end
   end
-
-  # @!visibility private
 end

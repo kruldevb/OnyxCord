@@ -31,18 +31,15 @@ describe OnyxCord::Internal::HTTP do
 
     allow(HTTPX).to receive(:plugin).with(:persistent).and_return(persistent)
     allow(persistent).to receive(:plugin).with(:follow_redirects).and_return(redirects)
-    allow(redirects).to receive(:with).with(
-      fallback_protocol: 'http/1.1',
-      ssl: { alpn_protocols: ['http/1.1'] },
-      pool_options: described_class::POOL_OPTIONS
-    ).and_return(session)
+    allow(redirects).to receive(:with).and_return(session)
 
     described_class.session
 
     expect(redirects).to have_received(:with).with(
       fallback_protocol: 'http/1.1',
       ssl: { alpn_protocols: ['http/1.1'] },
-      pool_options: described_class::POOL_OPTIONS
+      pool_options: described_class::POOL_OPTIONS,
+      timeout: described_class::DEFAULT_TIMEOUTS
     )
   end
 
@@ -71,11 +68,24 @@ describe OnyxCord::Internal::HTTP do
 
     described_class.request(:post, 'https://discord.test/upload', body)
 
-    expect(Net::HTTP).to have_received(:start).with('discord.test', 443, use_ssl: true)
-    expect(request.body).to include('name="files[0]"; filename="file.txt"')
-    expect(request.body).to include("Content-Type: text/plain\r\n\r\n")
-    expect(request.body).to include('name="payload_json"')
-    expect(request.body).to include("name=\"payload_json\"\r\n\r\n{}")
+    expect(Net::HTTP).to have_received(:start).with(
+      'discord.test', 443,
+      use_ssl: true,
+      open_timeout: 10,
+      read_timeout: 30,
+      write_timeout: 30
+    )
+
+    # Read the body stream into a string for inspection
+    stream = request.body_stream
+    expect(stream).to be_a(OnyxCord::Internal::HTTP::MultipartStream)
+    content = stream.read(1024 * 1024) # read enough to get everything
+    stream.rewind
+
+    expect(content).to include('name="files[0]"; filename="file.txt"')
+    expect(content).to include("Content-Type: text/plain\r\n\r\n")
+    expect(content).to include('name="payload_json"')
+    expect(content).to include("name=\"payload_json\"\r\n\r\n{}")
   end
 
   it 'uses disnake-style multipart ordering' do

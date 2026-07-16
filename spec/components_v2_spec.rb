@@ -284,15 +284,21 @@ describe 'Components V2 support' do
 
   describe OnyxCord::Webhooks::Client do
     it 'sends Components V2 flags and with_components for direct webhook execution' do
-      client = described_class.new(url: 'https://discord.com/api/v9/webhooks/1/token')
-      allow(OnyxCord::Internal::HTTP).to receive(:post)
+      client = described_class.new(url: 'https://discord.com/api/v10/webhooks/1/token')
+      allow(OnyxCord::REST.default_client).to receive(:request).and_return(
+        instance_double(OnyxCord::Internal::HTTP::Response, code: 200, body: '{}')
+      )
 
       client.execute(nil, false) do |_builder, view|
         view.text_display(content: 'Webhook UI')
       end
 
-      expect(OnyxCord::Internal::HTTP).to have_received(:post) do |url, body, headers|
-        expect(url).to eq('https://discord.com/api/v9/webhooks/1/token?wait=false&with_components=true')
+      expect(OnyxCord::REST.default_client).to have_received(:request) do |key, major, type, url, body:, headers:|
+        expect(key).to eq(:webhook)
+        expect(major).to eq('1')
+        expect(type).to eq(:post)
+        expect(url).to include('wait=false')
+        expect(url).to include('with_components=true')
         expect(JSON.parse(body)).to include(
           'flags' => flag,
           'components' => [{ 'type' => 10, 'content' => 'Webhook UI' }]

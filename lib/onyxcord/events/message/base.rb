@@ -192,7 +192,10 @@ module OnyxCord::Events
     # Utility method to get the voice bot for the current server
     # @return [Client, nil] the voice bot connected to this message's server, or nil if there is none connected
     def voice
-      @bot.voice(@message.channel.server.id)
+      server = @message.channel.server
+      return nil unless server
+
+      @bot.voice(server.id)
     end
 
     alias_method :user, :author
@@ -274,8 +277,8 @@ module OnyxCord::Events
             a == e
           end
         end,
-        matches_all(@attributes[:after], event.timestamp) { |a, e| a > e },
-        matches_all(@attributes[:before], event.timestamp) { |a, e| a < e },
+        matches_all(@attributes[:after], event.timestamp) { |a, e| e > a },
+        matches_all(@attributes[:before], event.timestamp) { |a, e| e < a },
         matches_all(@attributes[:private], event.channel.private?) { |a, e| !e == !a },
         matches_all(@attributes[:server], event.server) { |a, e| a&.resolve_id == e&.resolve_id }
       ].reduce(true, &:&)

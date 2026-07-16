@@ -15,9 +15,7 @@ module OnyxCord
         channels: false,
         pm_channels: false,
         thread_members: false,
-        server_previews: false,
-        members: false,
-        messages: false
+        server_previews: false
       },
       minimal: {
         users: false,
@@ -26,9 +24,16 @@ module OnyxCord
         channels: true,
         pm_channels: false,
         thread_members: false,
-        server_previews: false,
-        members: false,
-        messages: false
+        server_previews: false
+      },
+      lean: {
+        users: false,
+        voice_regions: false,
+        servers: true,
+        channels: true,
+        pm_channels: true,
+        thread_members: false,
+        server_previews: false
       },
       full: {
         users: true,
@@ -37,31 +42,45 @@ module OnyxCord
         channels: true,
         pm_channels: true,
         thread_members: true,
-        server_previews: true,
-        members: true,
-        messages: true
+        server_previews: true
       }
     }.freeze
 
     # Stores maximum limits for each LRU cache entity type.
     class CacheSizes
-      attr_accessor :servers, :channels, :users, :members, :pm_channels, :thread_members, :server_previews
+      VALID_KEYS = %i[servers channels users pm_channels thread_members server_previews].freeze
+      MAX_SIZE = 1_000_000
+
+      attr_reader :servers, :channels, :users, :pm_channels, :thread_members, :server_previews
 
       def initialize
         @servers = 1000
         @channels = 10_000
         @users = 50_000
-        @members = 100_000
         @pm_channels = 1000
         @thread_members = 5000
         @server_previews = 100
       end
 
+      %i[servers channels users pm_channels thread_members server_previews].each do |name|
+        define_method("#{name}=") do |value|
+          validate_value!(name, value)
+          instance_variable_set(:"@#{name}", value)
+        end
+      end
+
       def [](key)
+        key = key.to_sym
+        raise ArgumentError, "Unknown CacheSizes key: #{key.inspect}" unless VALID_KEYS.include?(key)
+
         send(key)
       end
 
       def []=(key, value)
+        key = key.to_sym
+        raise ArgumentError, "Unknown CacheSizes key: #{key.inspect}" unless respond_to?("#{key}=")
+
+        validate_value!(key, value)
         send("#{key}=", value)
       end
 
@@ -70,7 +89,6 @@ module OnyxCord
           servers: @servers,
           channels: @channels,
           users: @users,
-          members: @members,
           pm_channels: @pm_channels,
           thread_members: @thread_members,
           server_previews: @server_previews
@@ -82,13 +100,31 @@ module OnyxCord
         to_h.each { |k, v| copy[k] = v }
         copy
       end
+
+      private
+
+      def validate_value!(key, value)
+        return if value.nil?
+
+        unless value.is_a?(Integer)
+          raise ArgumentError, "#{key} cache size must be an Integer or nil, got #{value.class}"
+        end
+
+        if value.negative?
+          raise ArgumentError, "#{key} cache size must be non-negative, got #{value}"
+        end
+
+        return unless value > MAX_SIZE
+
+        raise ArgumentError, "#{key} cache size #{value} exceeds maximum #{MAX_SIZE}"
+      end
     end
 
     attr_accessor :mode, :cache, :cache_sizes, :event_executor, :event_workers, :event_queue_size
 
     def initialize
       @mode = :hybrid
-      @cache = :none
+      @cache = :minimal
       @cache_sizes = CacheSizes.new
       @event_executor = :pool
       @event_workers = 4
@@ -141,7 +177,12 @@ module OnyxCord
 
       case cache
       when Hash
-        CACHE_PRESETS[:none].merge(cache.transform_keys(&:to_sym))
+        known = CACHE_PRESETS[:none].keys
+        transformed = cache.transform_keys(&:to_sym)
+        unknown = transformed.keys - known
+        raise ArgumentError, "Unknown cache keys: #{unknown.join(', ')}" if unknown.any?
+
+        CACHE_PRESETS[:none].merge(transformed)
       else
         preset = cache.to_sym
         raise ArgumentError, "Unknown cache preset: #{cache.inspect}" unless CACHE_PRESETS[preset]

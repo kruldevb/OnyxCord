@@ -28,6 +28,9 @@ module OnyxCord
       end
     end
 
+    # Raised when a member chunk operation times out.
+    class MemberChunkTimeout < RuntimeError; end
+
     # Raised when the bot can't do something because its permissions on the server are insufficient
     class NoPermission < HTTPError; end
 
@@ -88,7 +91,7 @@ module OnyxCord
           if (errs = sub_err['_errors'])
             "#{key}: #{errs.map { |e| e['message'] }.join(' ')}"
           elsif sub_err['message'] || sub_err['code']
-            "#{"#{sub_err['code']}: " if sub_err['code']}#{err_msg}"
+            "#{"#{sub_err['code']}: " if sub_err['code']}#{sub_err['message']}"
           elsif sub_err.is_a? String
             sub_err
           else

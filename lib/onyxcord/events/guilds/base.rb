@@ -91,7 +91,24 @@ module OnyxCord::Events
   # Event handler for {ServerDeleteEvent}
 
   # Event handler for {ServerDeleteEvent}
-  class ServerDeleteEventHandler < ServerEventHandler; end
+  class ServerDeleteEventHandler < EventHandler
+    def matches?(event)
+      return false unless event.is_a? ServerDeleteEvent
+
+      [
+        matches_all(@attributes[:server], event.server) do |a, e|
+          a == case a
+               when String
+                 e
+               when Integer
+                 e
+               else
+                 e
+               end
+        end
+      ].reduce(true, &:&)
+    end
+  end
 
   # Emoji is created/deleted/updated
 end

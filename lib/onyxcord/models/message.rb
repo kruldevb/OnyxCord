@@ -194,7 +194,7 @@ module OnyxCord
         if @webhook_id
           # This is a webhook user! It would be pointless to try to resolve a member here, so we just create
           # a User and return that instead.
-          OnyxCord::LOGGER.debug("Webhook user: #{data['author']['id']}")
+          @bot.logger.debug("Webhook user: #{data['author']['id']}")
           @author = User.new(data['author'].merge({ '_webhook' => true }), @bot)
         elsif @channel.private?
 
@@ -209,10 +209,15 @@ module OnyxCord
       @reactions = data['reactions']&.map { |reaction| Reaction.new(reaction) } || []
       @mentions = data['mentions']&.map { |mention| @bot.ensure_user(mention) } || []
       @mention_roles = data['mention_roles']&.map(&:to_i) || []
-      @poll_result = Poll::Result.new(data['embeds'].pop, @message_reference, @bot) if @type == 46
+      raw_embeds = data['embeds']
+
+      if @type == 46 && raw_embeds.is_a?(Array)
+        poll_embed = raw_embeds.find { |embed| embed['type'] == 'poll_result' }
+        @poll_result = Poll::Result.new(poll_embed, @message_reference, @bot) if poll_embed
+      end
 
       @attachments = data['attachments']&.map { |attachment| Attachment.new(attachment, self, @bot) } || []
-      @embeds = data['embeds']&.map { |embed| Embed.new(embed, self) } || []
+      @embeds = (raw_embeds.is_a?(Array) ? raw_embeds.reject { |e| @poll_result && e['type'] == 'poll_result' } : []).map { |embed| Embed.new(embed, self) }
       @components = data['components']&.filter_map { |component| Components.from_data(component, @bot) } || []
 
       @thread = @bot.ensure_channel(data['thread']) if data['thread']
@@ -236,7 +241,7 @@ module OnyxCord
 
       unless @channel.private?
         @author = @channel.server.member(@author_id)
-        OnyxCord::LOGGER.debug("Member with ID #{@author_id} not cached (possibly left the server).") if @author.nil?
+        @bot.logger.debug("Member with ID #{@author_id} not cached (possibly left the server).") if @author.nil?
       end
 
       @author ||= @bot.user(@author_id)

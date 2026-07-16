@@ -22,7 +22,7 @@ module OnyxCord::Events
     # @!visibility private
     def process_emoji(data)
       @emoji = data['emojis'].map do |e|
-        @server.emoji[e['id']]
+        @server.emoji[e['id'].to_i]
       end
     end
   end

@@ -60,6 +60,13 @@ module OnyxCord
         pool_timeout: 10
       }.freeze
 
+      # Default timeout settings (seconds).
+      DEFAULT_TIMEOUTS = {
+        connect_timeout: 10,
+        write_timeout: 30,
+        read_timeout: 30
+      }.freeze
+
       # The shared HTTPX session with persistent, pooled connections.
       def session
         session_mutex.synchronize do
@@ -68,7 +75,8 @@ module OnyxCord
                             .with(
                               fallback_protocol: 'http/1.1',
                               ssl: { alpn_protocols: ['http/1.1'] },
-                              pool_options: POOL_OPTIONS
+                              pool_options: POOL_OPTIONS,
+                              timeout: DEFAULT_TIMEOUTS
                             )
         end
       end
@@ -127,10 +135,98 @@ module OnyxCord
         request = Net::HTTP::Post.new(uri)
         headers.each { |key, value| request[key.to_s] = value }
         request['Content-Type'] = "multipart/form-data; boundary=#{boundary}"
-        request.body = multipart_body(body, boundary)
+        request.body_stream = MultipartStream.new(multipart_parts(body), boundary)
 
-        Net::HTTP.start(uri.hostname, uri.port, use_ssl: uri.scheme == 'https') do |http|
+        Net::HTTP.start(uri.hostname, uri.port,
+                        use_ssl: uri.scheme == 'https',
+                        open_timeout: DEFAULT_TIMEOUTS[:connect_timeout],
+                        read_timeout: DEFAULT_TIMEOUTS[:read_timeout],
+                        write_timeout: DEFAULT_TIMEOUTS[:write_timeout]) do |http|
           http.request(request)
+        end
+      end
+
+      # Streaming multipart body that yields chunks instead of buffering
+      # the entire payload in memory.  Each read returns the next part of
+      # the multipart envelope, keeping peak memory usage proportional to
+      # the largest single file rather than the total upload size.
+      class MultipartStream
+        CHUNK_SIZE = 16 * 1024 # 16 KB
+
+        def initialize(parts, boundary)
+          @chunks = build_chunk_queue(parts, boundary)
+          @index = 0
+          @buffer = (+'').b
+        end
+
+        def read(length = nil, outbuf = nil)
+          outbuf = outbuf.nil? ? (+'' .dup).b : outbuf.replace(+(+'').b)
+
+          while outbuf.bytesize < length
+            if @buffer.empty?
+              return outbuf.empty? ? nil : outbuf if @index >= @chunks.size
+
+              chunk = @chunks[@index]
+              @index += 1
+
+              if chunk.respond_to?(:read)
+                data = chunk.read(CHUNK_SIZE)
+                if data.nil? || data.empty?
+                  chunk.rewind if chunk.respond_to?(:rewind)
+                  next
+                end
+                @buffer << data
+              else
+                @buffer << chunk.to_s
+              end
+            end
+
+            needed = length - outbuf.bytesize
+            outbuf << @buffer.byteslice(0, needed)
+            @buffer = @buffer.byteslice(needed..) || (+'').b
+          end
+
+          outbuf
+        end
+
+        def rewind
+          @index = 0
+          @buffer = (+'').b
+          @chunks.each { |c| c.rewind if c.respond_to?(:rewind) }
+        end
+
+        def close
+          @chunks.each { |c| c.close if c.respond_to?(:close) }
+        end
+
+        private
+
+        def build_chunk_queue(parts, boundary)
+          chunks = []
+          parts.each do |part|
+            chunks << "--#{boundary}\r\n"
+            key = part[:name]
+            if part[:filename]
+              value = part[:value]
+              value.rewind if value.respond_to?(:rewind)
+              filename = part[:filename]
+              ct = part[:content_type] || multipart_content_type(filename)
+              chunks << "Content-Disposition: form-data; name=\"#{key}\"; filename=\"#{filename}\"\r\n"
+              chunks << "Content-Type: #{ct}\r\n\r\n"
+              chunks << value
+              chunks << "\r\n"
+            else
+              chunks << "Content-Disposition: form-data; name=\"#{key}\"\r\n\r\n"
+              chunks << part[:value].to_s
+              chunks << "\r\n"
+            end
+          end
+          chunks << "--#{boundary}--\r\n"
+          chunks
+        end
+
+        def multipart_content_type(filename)
+          File.extname(filename).casecmp('.txt').zero? ? 'text/plain' : 'application/octet-stream'
         end
       end
 

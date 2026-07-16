@@ -27,7 +27,19 @@ module OnyxCord
     attr_reader :region_id
 
     # @return [Array<Channel>] an array of all the channels (text and voice) on this server.
-    attr_reader :channels
+    def channels
+      @channels_by_id.values
+    end
+
+    # Iterates over each channel on this server without allocating an array.
+    # @yieldparam channel [Channel]
+    # @return [Enumerator, self]
+    def each_channel(&block)
+      return enum_for(:each_channel) unless block
+
+      @channels_by_id.each_value(&block)
+      self
+    end
 
     # @return [Hash<Integer => Emoji>] a hash of all the emoji available on this server.
     attr_reader :emoji
@@ -120,8 +132,12 @@ module OnyxCord
 
       update_data(data)
 
-      # Whether this server's members have been chunked (resolved using op 8 and GUILD_MEMBERS_CHUNK) yet
-      @chunked = false
+      @chunk_mutex = Mutex.new
+      @chunk_condition = ConditionVariable.new
+      @chunk_state = :not_requested
+      @chunk_nonce = nil
+      @expected_chunks = 0
+      @received_chunks = 0
     end
 
     # @return [Member] The server owner.
@@ -194,16 +210,26 @@ module OnyxCord
     # @return [Array<Member>] an array of all the members on this server.
     # @raise [RuntimeError] if the bot was not started with the :server_member intent
     def members
-      return @members.values if @chunked
+      @chunk_mutex.synchronize do
+        return @members.values if @chunk_state == :complete
 
-      @bot.debug("Members for server #{@id} not chunked yet - initiating")
+        if @chunk_state == :not_requested
+          @bot.debug("Members for server #{@id} not chunked yet - initiating")
 
-      # If the SERVER_MEMBERS intent flag isn't set, the gateway won't respond when we ask for members.
-      raise 'The :server_members intent is required to get server members' if @bot.gateway.intents.nobits?(INTENTS[:server_members])
+          raise 'The :server_members intent is required to get server members' if @bot.gateway.intents.nobits?(INTENTS[:server_members])
 
-      @bot.request_chunks(@id)
-      sleep 0.05 until @chunked
-      @members.values
+          @bot.request_chunks(@id, self)
+        end
+
+        @chunk_condition.wait(@chunk_mutex, 60)
+
+        if @chunk_state == :complete
+          @members.values
+        else
+          @chunk_state = :failed unless @chunk_state == :complete
+          raise OnyxCord::Errors::MemberChunkTimeout, "Member chunk timed out for server #{@id}"
+        end
+      end
     end
 
     alias_method :users, :members
@@ -1201,16 +1227,24 @@ module OnyxCord
     # Processes a GUILD_MEMBERS_CHUNK packet, specifically the members field
     # @note For internal use only
     # @!visibility private
-    def process_chunk(members, chunk_index, chunk_count)
-      process_members(members)
-      LOGGER.debug("Processed chunk #{chunk_index + 1}/#{chunk_count} server #{@id} - index #{chunk_index} - length #{members.length}")
+    def process_chunk(members, chunk_index, chunk_count, nonce = nil)
+      @chunk_mutex.synchronize do
+        return unless @chunk_nonce.nil? || nonce == @chunk_nonce
 
-      return if chunk_index + 1 < chunk_count
+        process_members(members)
+        @received_chunks += 1
+        @expected_chunks = chunk_count if chunk_count > @expected_chunks
+        @chunk_state = :receiving
 
-      LOGGER.debug("Finished chunking server #{@id}")
+        @bot.logger.debug("Processed chunk #{chunk_index + 1}/#{chunk_count} server #{@id} - nonce #{nonce}")
 
-      # Reset everything to normal
-      @chunked = true
+        return if chunk_index + 1 < chunk_count
+
+        @bot.logger.debug("Finished chunking server #{@id}")
+
+        @chunk_state = :complete
+        @chunk_condition.broadcast
+      end
     end
 
     # Get the AFK channel of the server.
@@ -1468,7 +1502,7 @@ module OnyxCord
         if user
           user.update_presence(element)
         else
-          LOGGER.warn "Rogue presence update! #{element['user']['id']} on #{@id}"
+          @bot.logger.warn "Rogue presence update! #{element['user']['id']} on #{@id}"
         end
       end
     end

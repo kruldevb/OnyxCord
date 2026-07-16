@@ -1,0 +1,113 @@
+# frozen_string_literal: true
+
+module OnyxCord
+  module Commands
+    module AstParser
+      # Evaluates an AST against a bot and event, with budget enforcement.
+      class Executor
+        def initialize(root, bot)
+          @root = root
+          @bot = bot
+          @attributes = bot.attributes
+          @start_time = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+        end
+
+        # Execute the AST and return the result string.
+        # @param event [CommandEvent] The event to execute against.
+        # @return [String] The result of execution.
+        def execute(event)
+          case @root
+          when ChainArgsNode
+            execute_chain_args(@root, event)
+          when ChainNode
+            execute_chain(@root.commands, event)
+          else
+            ''
+          end
+        end
+
+        private
+
+        def execute_chain_args(node, event)
+          execute_chain(node.chain.commands, event)
+        end
+
+        def execute_chain(commands, event)
+          check_deadline!
+          prev = ''
+
+          commands.each do |cmd|
+            result = execute_node(cmd, event, prev)
+            return '' if result.nil? && cmd.is_a?(CommandNode)
+
+            prev = result || ''
+          end
+
+          prev
+        end
+
+        def execute_node(node, event, prev)
+          case node
+          when CommandNode
+            execute_command(node, event, prev)
+          when SubchainNode
+            sub_executor = Executor.new(node.chain, @bot)
+            sub_executor.execute(event)
+          when RepeatNode
+            execute_repeat(node, event, prev)
+          when LiteralNode
+            node.value
+          when PreviousNode
+            prev
+          else
+            ''
+          end
+        end
+
+        def execute_command(node, event, prev)
+          check_deadline!
+
+          arguments = node.arguments.map do |arg|
+            if arg.is_a?(PreviousNode)
+              prev
+            elsif arg.is_a?(String) && arg.include?(@attributes[:previous])
+              arg.gsub(@attributes[:previous], prev)
+            else
+              arg
+            end
+          end
+
+          @bot.execute_command(node.name, event, arguments, true, true)
+        end
+
+        def execute_repeat(node, event, prev)
+          max_repeat = @attributes[:max_chain_repeat] || 25
+          repeat_count = [node.count, max_repeat].min
+          result = String.new
+
+          repeat_count.times do
+            check_deadline!
+            sub_executor = Executor.new(node.chain, @bot)
+            chain_result = sub_executor.execute(event)
+
+            if chain_result
+              max_output = @attributes[:max_chain_output_bytes] || (64 * 1024)
+              break if result.bytesize + chain_result.bytesize > max_output
+              result << chain_result
+            end
+          end
+
+          result
+        end
+
+        def check_deadline!
+          max_duration = @attributes[:max_chain_duration] || 10
+          elapsed = Process.clock_gettime(Process::CLOCK_MONOTONIC) - @start_time
+          return if elapsed < max_duration
+
+          raise ExecutionBudgetExceeded, "Command chain exceeded time limit of #{max_duration}s"
+        end
+      end
+    end
+  end
+end

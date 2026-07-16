@@ -12,7 +12,7 @@ module OnyxCord::REST::Channel
       channel_id,
       :get,
       "#{OnyxCord::REST.api_base}/channels/#{channel_id}/messages/pins?#{query}",
-      Authorization: token
+      headers: { Authorization: token }
     )
   end
 
@@ -24,9 +24,7 @@ module OnyxCord::REST::Channel
       channel_id,
       :put,
       "#{OnyxCord::REST.api_base}/channels/#{channel_id}/messages/pins/#{message_id}",
-      nil,
-      Authorization: token,
-      'X-Audit-Log-Reason': reason
+      headers: { Authorization: token, 'X-Audit-Log-Reason': reason }
     )
   end
 
@@ -38,8 +36,7 @@ module OnyxCord::REST::Channel
       channel_id,
       :delete,
       "#{OnyxCord::REST.api_base}/channels/#{channel_id}/messages/pins/#{message_id}",
-      Authorization: token,
-      'X-Audit-Log-Reason': reason
+      headers: { Authorization: token, 'X-Audit-Log-Reason': reason }
     )
   end
 end

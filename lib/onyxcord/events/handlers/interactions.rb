@@ -200,7 +200,7 @@ module OnyxCord
     # @yieldparam event [AutocompleteEvent] The event that was raised.
     # @return [AutocompleteEventHandler] The event handler that was registered.
     def autocomplete(name = nil, attributes = {}, &block)
-      register_event(AutocompleteEvent, attributes.merge!({ name: name&.to_s }), block)
+      register_event(AutocompleteEvent, attributes.merge({ name: name&.to_s }), block)
     end
 
     # This **event** is raised whenever an application command's permissions are updated.

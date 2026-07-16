@@ -74,13 +74,16 @@ module OnyxCord::Events
     def target
       return nil unless @target_id
 
-      @resolved.find { |data| data.key?(@target_id) }[@target_id]
+      @resolved.to_h.each_value do |data|
+        return data[@target_id] if data.is_a?(Hash) && data.key?(@target_id)
+      end
+      nil
     end
 
     private
 
     def transform_options_hash(hash)
-      hash.to_h { |opt| [opt['name'], opt['options'] || opt['value']] }
+      hash.to_h { |opt| [opt['name'].to_sym, opt['options'] || opt['value']] }
     end
   end
 

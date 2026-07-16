@@ -2,9 +2,12 @@
 
 class OnyxCord::Webhooks::View
   class MediaGalleryBuilder
+    MAX_ITEMS = 10
+
     # Create a media gallery component.
-    # @param id [Integer, nil] The unique 32-bit ID of the media gallery component.
-    # @yieldparam builder [MediaGalleryBuilder] Yields the initialized media gallery component.
+    #
+    # @param id [Integer, nil] The unique 32-bit ID of the media gallery.
+    # @yieldparam builder [MediaGalleryBuilder] Yields the initialized gallery.
     def initialize(*items, id: nil)
       @id = id
       @items = []
@@ -15,12 +18,15 @@ class OnyxCord::Webhooks::View
     end
 
     # Add a gallery item to the media gallery component.
-    # @param url [String] The URL to the gallery item's media.
-    # @param description [String, nil] The description of the gallery item.
-    # @param spoiler [true, false] Whether or not to apply a spoiler label to the gallery item.
+    #
+    # @param item [Hash, String, nil] A hash or URL string.
+    # @param url [String, nil] The URL to the gallery item's media.
+    # @param description [String, nil] The description.
+    # @param spoiler [true, false] Whether to apply a spoiler label.
     def item(item = nil, url: nil, description: nil, spoiler: nil)
       url, description, spoiler = normalize_item(item, url, description, spoiler)
       raise ArgumentError, 'media gallery item requires a url' if url.nil? || url.to_s.empty?
+      raise ArgumentError, "Too many media gallery items: #{@items.length + 1} (max #{MAX_ITEMS})" if @items.length >= MAX_ITEMS
 
       @items << { media: { url: url }, description: description, spoiler: spoiler }.compact
     end
@@ -45,6 +51,4 @@ class OnyxCord::Webhooks::View
       [url, description, spoiler.nil? ? false : spoiler]
     end
   end
-
-  # A section allows you to group together an accessory with text display components.
 end

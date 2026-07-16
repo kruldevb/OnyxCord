@@ -6,24 +6,26 @@ module OnyxCord::REST::Server
   # Get a list of all of the active scheduled events in the server.
   # https://discord.com/developers/docs/resources/guild-scheduled-event#list-scheduled-events-for-guild
   def list_scheduled_events(token, server_id, with_user_count: false)
+    query = URI.encode_www_form({ with_user_count: with_user_count })
     OnyxCord::REST.request(
       :guilds_sid_scheduled_events,
       server_id,
       :get,
-      "#{OnyxCord::REST.api_base}/guilds/#{server_id}/scheduled-events?with_user_count=#{with_user_count}",
-      Authorization: token
+      "#{OnyxCord::REST.api_base}/guilds/#{server_id}/scheduled-events?#{query}",
+      headers: { Authorization: token }
     )
   end
 
   # Get a single scheduled event in the server.
   # https://discord.com/developers/docs/resources/guild-scheduled-event#get-guild-scheduled-event
   def get_scheduled_event(token, server_id, scheduled_event_id, with_user_count: false)
+    query = URI.encode_www_form({ with_user_count: with_user_count })
     OnyxCord::REST.request(
       :guilds_sid_scheduled_events_seid,
       server_id,
       :get,
-      "#{OnyxCord::REST.api_base}/guilds/#{server_id}/scheduled-events/#{scheduled_event_id}?with_user_count=#{with_user_count}",
-      Authorization: token
+      "#{OnyxCord::REST.api_base}/guilds/#{server_id}/scheduled-events/#{scheduled_event_id}?#{query}",
+      headers: { Authorization: token }
     )
   end
 
@@ -37,7 +39,7 @@ module OnyxCord::REST::Server
       server_id,
       :get,
       "#{OnyxCord::REST.api_base}/guilds/#{server_id}/scheduled-events/#{scheduled_event_id}/users?#{query}",
-      Authorization: token
+      headers: { Authorization: token }
     )
   end
 
@@ -49,10 +51,8 @@ module OnyxCord::REST::Server
       server_id,
       :post,
       "#{OnyxCord::REST.api_base}/guilds/#{server_id}/scheduled-events",
-      { name:, privacy_level:, scheduled_start_time:, entity_type:, channel_id:, entity_metadata:, scheduled_end_time:, description:, image:, recurrence_rule: }.compact.to_json,
-      Authorization: token,
-      content_type: :json,
-      'X-Audit-Log-Reason': reason
+      body: { name:, privacy_level:, scheduled_start_time:, entity_type:, channel_id:, entity_metadata:, scheduled_end_time:, description:, image:, recurrence_rule: }.compact.to_json,
+      headers: { Authorization: token, content_type: :json, 'X-Audit-Log-Reason': reason }
     )
   end
 
@@ -64,10 +64,8 @@ module OnyxCord::REST::Server
       server_id,
       :patch,
       "#{OnyxCord::REST.api_base}/guilds/#{server_id}/scheduled-events/#{scheduled_event_id}",
-      { name:, image:, status:, entity_type:, privacy_level:, scheduled_end_time:, scheduled_start_time:, channel_id:, description:, entity_metadata:, recurrence_rule: }.reject { |_, value| value == :undef }.to_json,
-      Authorization: token,
-      content_type: :json,
-      'X-Audit-Log-Reason': reason
+      body: { name:, image:, status:, entity_type:, privacy_level:, scheduled_end_time:, scheduled_start_time:, channel_id:, description:, entity_metadata:, recurrence_rule: }.reject { |_, value| value == :undef }.to_json,
+      headers: { Authorization: token, content_type: :json, 'X-Audit-Log-Reason': reason }
     )
   end
 
@@ -79,8 +77,7 @@ module OnyxCord::REST::Server
       server_id,
       :delete,
       "#{OnyxCord::REST.api_base}/guilds/#{server_id}/scheduled-events/#{scheduled_event_id}",
-      Authorization: token,
-      'X-Audit-Log-Reason': reason
+      headers: { Authorization: token, 'X-Audit-Log-Reason': reason }
     )
   end
 end

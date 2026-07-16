@@ -20,6 +20,16 @@ module OnyxCord::Commands
     # @see #initialize
     attr_reader :prefix
 
+    DEFAULT_DELIMITERS = {
+      previous: '~',
+      chain_delimiter: '>',
+      chain_args_delim: ':',
+      sub_chain_start: '[',
+      sub_chain_end: ']',
+      quote_start: '"',
+      quote_end: '"'
+    }.freeze
+
     include CommandContainer
     require 'onyxcord/commands/bot/execution'
     include Execution
@@ -79,8 +89,6 @@ module OnyxCord::Commands
     #   :advanced_functionality). Default is '"' or the same as :quote_start. Set to an empty string to disable.
     # @option attributes [true, false] :ignore_bots Whether the bot should ignore bot accounts or not. Default is false.
     def initialize(**attributes)
-      # TODO: This needs to be revisited. undefined attributes are treated
-      # as explicitly passed nils.
       super(
         log_mode: attributes[:log_mode],
         token: attributes[:token],
@@ -99,52 +107,46 @@ module OnyxCord::Commands
       )
 
       @prefix = attributes[:prefix]
+
+      # Validate single-codepoint delimiters
+      %i[previous chain_delimiter chain_args_delim sub_chain_start sub_chain_end quote_start quote_end].each do |key|
+        val = attributes.fetch(key) { DEFAULT_DELIMITERS[key] }
+        next if val.nil? || val.is_a?(FalseClass) || val.empty?
+        next if val.length == 1 || val.length == val.codepoints.length
+
+        raise ArgumentError, "#{key} must be a single codepoint, got #{val.inspect}"
+      end
+
       @attributes = {
-        # Whether advanced functionality such as command chains are enabled
-        advanced_functionality: attributes[:advanced_functionality].nil? ? false : attributes[:advanced_functionality],
-
-        # The name of the help command (that displays information to other commands). False if none should exist
-        help_command: attributes[:help_command].is_a?(FalseClass) ? nil : (attributes[:help_command] || :help),
-
-        # The message to display for when a command doesn't exist, %command% to get the command name in question and nil for no message
-        # No default value here because it may not be desired behaviour
+        advanced_functionality: attributes.fetch(:advanced_functionality, false),
+        help_command: attributes[:help_command].is_a?(FalseClass) ? nil : (attributes.fetch(:help_command, :help)),
         command_doesnt_exist_message: attributes[:command_doesnt_exist_message],
-
-        # The message to be displayed when `NoPermission` error is raised.
         no_permission_message: attributes[:no_permission_message],
-
-        # Spaces allowed between prefix and command
-        spaces_allowed: attributes[:spaces_allowed].nil? ? false : attributes[:spaces_allowed],
-
-        # Webhooks allowed to trigger commands
-        webhook_commands: attributes[:webhook_commands].nil? || attributes[:webhook_commands],
-
-        channels: attributes[:channels] || [],
+        spaces_allowed: attributes.fetch(:spaces_allowed, false),
+        webhook_commands: attributes.fetch(:webhook_commands, true),
+        channels: Array(attributes[:channels]),
 
         # All of the following need to be one character
-        # String to designate previous result in command chain
-        previous: attributes[:previous] || '~',
+        previous: attributes.fetch(:previous, DEFAULT_DELIMITERS[:previous]),
+        chain_delimiter: attributes.fetch(:chain_delimiter, DEFAULT_DELIMITERS[:chain_delimiter]),
+        chain_args_delim: attributes.fetch(:chain_args_delim, DEFAULT_DELIMITERS[:chain_args_delim]),
+        sub_chain_start: attributes.fetch(:sub_chain_start, DEFAULT_DELIMITERS[:sub_chain_start]),
+        sub_chain_end: attributes.fetch(:sub_chain_end, DEFAULT_DELIMITERS[:sub_chain_end]),
+        quote_start: attributes.fetch(:quote_start, DEFAULT_DELIMITERS[:quote_start]),
+        quote_end: attributes.fetch(:quote_end, attributes[:quote_start] || DEFAULT_DELIMITERS[:quote_end]),
 
-        # Command chain delimiter
-        chain_delimiter: attributes[:chain_delimiter] || '>',
+        rescue: attributes[:rescue],
 
-        # Chain argument delimiter
-        chain_args_delim: attributes[:chain_args_delim] || ':',
-
-        # Sub-chain starting character
-        sub_chain_start: attributes[:sub_chain_start] || '[',
-
-        # Sub-chain ending character
-        sub_chain_end: attributes[:sub_chain_end] || ']',
-
-        # Quoted mode starting character
-        quote_start: attributes[:quote_start] || '"',
-
-        # Quoted mode ending character
-        quote_end: attributes[:quote_end] || attributes[:quote_start] || '"',
-
-        # Default block for handling internal exceptions, or a string to respond with
-        rescue: attributes[:rescue]
+        # Execution budget limits (DoS protection)
+        max_chain_repeat: attributes.fetch(:max_chain_repeat, 25),
+        max_subchain_depth: attributes.fetch(:max_subchain_depth, 16),
+        max_chain_commands: attributes.fetch(:max_chain_commands, 50),
+        max_expanded_executions: attributes.fetch(:max_expanded_executions, 100),
+        max_chain_duration: attributes.fetch(:max_chain_duration, 10),
+        max_command_duration: attributes.fetch(:max_command_duration, 5),
+        max_chain_output_bytes: attributes.fetch(:max_chain_output_bytes, 64 * 1024),
+        max_chain_input_bytes: attributes.fetch(:max_chain_input_bytes, 16 * 1024),
+        max_message_output_chars: attributes.fetch(:max_message_output_chars, 2_000)
       }
 
       @permissions = {
@@ -156,11 +158,7 @@ module OnyxCord::Commands
 
       command(@attributes[:help_command], max_args: 1, description: 'Shows a list of all the commands available or displays help for a specific command.', usage: 'help [command name]') do |event, command_name|
         if command_name
-          command = @commands[command_name.to_sym]
-          if command.is_a?(CommandAlias)
-            command = command.aliased_command
-            command_name = command.name
-          end
+          command = resolve_command(command_name.to_sym)
           # rubocop:disable Lint/ReturnInVoidContext
           return "The command `#{command_name}` does not exist!" unless command
           # rubocop:enable Lint/ReturnInVoidContext
@@ -168,42 +166,63 @@ module OnyxCord::Commands
           desc = command.attributes[:description] || '*No description available*'
           usage = command.attributes[:usage]
           parameters = command.attributes[:parameters]
-          result = "**`#{command_name}`**: #{desc}"
-          aliases = command_aliases(command_name.to_sym)
+          result = String.new("**`#{command.name}`**: #{desc}")
+          aliases = command_aliases(command.name)
           unless aliases.empty?
-            result += "\nAliases: "
-            result += aliases.map { |a| "`#{a.name}`" }.join(', ')
+            result << "\nAliases: "
+            result << aliases.map { |a| "`#{a.name}`" }.join(', ')
           end
-          result += "\nUsage: `#{usage}`" if usage
+          result << "\nUsage: `#{usage}`" if usage
           if parameters
-            result += "\nAccepted Parameters:\n```"
-            parameters.each { |p| result += "\n#{p}" }
-            result += '```'
+            result << "\nAccepted Parameters:\n```"
+            parameters.each { |p| result << "\n#{p}" }
+            result << '```'
           end
-          result
+          paginate_text(result, @attributes[:max_message_output_chars] || 2_000)
         else
           available_commands = @commands.values.reject do |c|
             c.is_a?(CommandAlias) || !c.attributes[:help_available] || !required_roles?(event.user, c.attributes[:required_roles]) || !allowed_roles?(event.user, c.attributes[:allowed_roles]) || !required_permissions?(event.user, c.attributes[:required_permissions], event.channel)
           end
           case available_commands.length
           when 0..5
-            available_commands.reduce "**List of commands:**\n" do |memo, c|
-              memo + "**`#{c.name}`**: #{c.attributes[:description] || '*No description available*'}\n"
-            end
-          when 5..50
-            (available_commands.reduce "**List of commands:**\n" do |memo, c|
-              memo + "`#{c.name}`, "
-            end)[0..-3]
+            buf = String.new("**List of commands:**\n")
+            available_commands.each { |c| buf << "**`#{c.name}`**: #{c.attributes[:description] || '*No description available*'}\n" }
+            buf
+          when 6..50
+            buf = String.new("**List of commands:**\n")
+            available_commands.each { |c| buf << "`#{c.name}`, " }
+            buf[0..-3]
           else
-            event.user.pm(available_commands.reduce("**List of commands:**\n") { |m, e| m + "`#{e.name}`, " }[0..-3])
+            buf = String.new("**List of commands:**\n")
+            available_commands.each { |c| buf << "`#{c.name}`, " }
+            event.user.pm(buf[0..-3])
             event.channel.pm? ? '' : 'Sending list in PM!'
           end
         end
       end
     end
 
-    # Returns all aliases for the command with the given name
-    # @param name [Symbol] the name of the `Command`
-    # @return [Array<CommandAlias>]
+    private
+
+    # Splits text into chunks that fit within Discord's character limit,
+    # breaking at newlines to avoid splitting code blocks.
+    # @param text [String] The text to paginate.
+    # @param max_chars [Integer] Maximum characters per page.
+    # @return [String] The text if it fits, or the first page.
+    def paginate_text(text, max_chars = 2_000)
+      return text if text.bytesize <= max_chars
+
+      pages = []
+      current = String.new
+      text.each_line do |line|
+        if current.bytesize + line.bytesize > max_chars
+          pages << current
+          current = String.new
+        end
+        current << line
+      end
+      pages << current unless current.empty?
+      pages.first || text[0...max_chars]
+    end
   end
 end

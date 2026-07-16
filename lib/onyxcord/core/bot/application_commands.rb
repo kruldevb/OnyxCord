@@ -104,26 +104,35 @@ module OnyxCord
 
       # @yieldparam [OptionBuilder]
       # @yieldparam [PermissionBuilder]
-      def edit_application_command(command_id, server_id: nil, name: nil, description: nil, default_permission: nil, type: :chat_input, default_member_permissions: nil, contexts: nil, nsfw: nil, integration_types: nil)
-        type = ApplicationCommand::TYPES[type] || type
+      def edit_application_command(command_id, server_id: nil, name: nil, description: nil, default_permission: nil, type: nil, default_member_permissions: nil, contexts: nil, nsfw: nil, integration_types: nil, options: nil, dm_permission: nil, name_localizations: nil, description_localizations: nil, handler: nil, &block)
+        # INT-0211: type não é enviado se nil — não assumir chat_input
+        type = type ? (ApplicationCommand::TYPES[type] || type) : nil
 
         contexts = contexts&.map { |context| Interaction::CONTEXTS[context] || context }
-        integration_types = integration_types&.map { |type| Interaction::INTEGRATION_TYPES[type] || type }
+        integration_types = integration_types&.map { |it| Interaction::INTEGRATION_TYPES[it] || it }
         default_member_permissions = Permissions.bits(default_member_permissions) if default_member_permissions.is_a?(Array)
 
-        builder = Interactions::OptionBuilder.new
-        permission_builder = Interactions::PermissionBuilder.new
+        # INT-0211: não resetar options se foi passado como argumento explícito
+        explicit_options = options
+        permission_builder = nil
 
-        yield(builder, permission_builder) if block_given?
+        if block_given?
+          builder = Interactions::OptionBuilder.new
+          permission_builder = Interactions::PermissionBuilder.new
+          yield(builder, permission_builder)
+          options = builder.to_a
+        else
+          options = explicit_options
+        end
 
         resp = if server_id
-                 REST::Application.edit_guild_command(@token, profile.id, server_id, command_id, name, description, builder.to_a, default_permission, type, default_member_permissions&.to_s, contexts, nsfw)
+                 REST::Application.edit_guild_command(@token, profile.id, server_id, command_id, name, description, options, default_permission, type, default_member_permissions&.to_s, contexts, nsfw)
                else
-                 REST::Application.edit_global_command(@token, profile.id, command_id, name, description, builder.to_a, default_permission, type, default_member_permissions&.to_s, contexts, nsfw, integration_types)
+                 REST::Application.edit_global_command(@token, profile.id, command_id, name, description, options, default_permission, type, default_member_permissions&.to_s, contexts, nsfw, integration_types)
                end
         cmd = ApplicationCommand.new(JSON.parse(resp), self, server_id)
 
-        if permission_builder.to_a.any?
+        if permission_builder&.to_a&.any?
           raise ArgumentError, 'Permissions can only be set for guild commands' unless server_id
 
           edit_application_command_permissions(cmd.id, server_id, permission_builder.to_a)

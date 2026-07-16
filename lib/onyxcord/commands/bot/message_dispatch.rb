@@ -11,16 +11,13 @@ class OnyxCord::Commands::Bot
       return message if message.webhook? && !@attributes[:webhook_commands]
 
       unless message.author
-        OnyxCord::LOGGER.warn("Received a message (#{message.inspect}) with nil author! Ignoring, please report this if you can")
+        @logger.warn("Received a message (id=#{message.id}) with nil author! Ignoring")
         return
       end
-
-      event = OnyxCord::Commands::CommandEvent.new(message, self)
 
       chain = trigger?(message)
       return message unless chain
 
-      # Don't allow spaces between the prefix and the command
       if chain.start_with?(' ') && !@attributes[:spaces_allowed]
         debug('Chain starts with a space')
         return message
@@ -31,26 +28,37 @@ class OnyxCord::Commands::Bot
         return message
       end
 
+      max_input = @attributes[:max_chain_input_bytes] || (16 * 1024)
+      if chain.bytesize > max_input
+        debug("Chain input #{chain.bytesize}b exceeds max #{max_input}b, ignoring")
+        return message
+      end
+
+      event = OnyxCord::Commands::CommandEvent.new(message, self)
       execute_chain(chain, event)
 
-      # Return the message so it doesn't get parsed again during the rest of the dispatch handling
       message
     end
 
-    # Check whether a message should trigger command execution, and if it does, return the raw chain
-
+    # Check whether a message should trigger command execution, and if it does, return the raw chain.
+    # Returns on first matching prefix for arrays.
     def trigger?(message)
-      if @prefix.is_a? String
-        standard_prefix_trigger(message.content, @prefix)
-      elsif @prefix.is_a? Array
-        @prefix.map { |e| standard_prefix_trigger(message.content, e) }.reduce { |m, e| m || e }
-      elsif @prefix.respond_to? :call
+      content = message.content
+      if @prefix.is_a?(String)
+        standard_prefix_trigger(content, @prefix)
+      elsif @prefix.is_a?(Array)
+        @prefix.each do |p|
+          result = standard_prefix_trigger(content, p)
+          return result if result
+        end
+        nil
+      elsif @prefix.respond_to?(:call)
         @prefix.call(message)
       end
     end
 
     def standard_prefix_trigger(message, prefix)
-      return nil unless message.start_with? prefix
+      return nil unless message.start_with?(prefix)
 
       message[prefix.length..]
     end

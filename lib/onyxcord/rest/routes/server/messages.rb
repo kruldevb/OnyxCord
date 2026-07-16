@@ -13,7 +13,7 @@ module OnyxCord::REST::Server
       server_id,
       :get,
       "#{OnyxCord::REST.api_base}/guilds/#{server_id}/messages/search?#{query}",
-      Authorization: token
+      headers: { Authorization: token }
     )
   end
 end

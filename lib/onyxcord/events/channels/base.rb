@@ -62,8 +62,9 @@ module OnyxCord::Events
 
       [
         matches_all(@attributes[:type], event.type) do |a, e|
-          a == if a.is_a? String
-                 e.name
+          a == case a
+               when String, Symbol
+                 OnyxCord::Channel::TYPES[a.to_sym]
                else
                  e
                end

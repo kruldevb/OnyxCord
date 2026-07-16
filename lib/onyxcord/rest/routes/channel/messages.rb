@@ -6,13 +6,23 @@ module OnyxCord::REST::Channel
   # Get a list of messages from a channel's history
   # https://discord.com/developers/docs/resources/channel#get-channel-messages
   def messages(token, channel_id, amount, before = nil, after = nil, around = nil)
-    query_string = URI.encode_www_form({ limit: amount, before: before, after: after, around: around }.compact)
+    pagination_params = [before, after, around].compact
+    if pagination_params.size > 1
+      raise ArgumentError, 'Only one of before, after, or around may be specified'
+    end
+
+    limit = amount.to_i
+    unless limit >= 1 && limit <= 100
+      raise ArgumentError, "limit must be between 1 and 100, got #{limit}"
+    end
+
+    query_string = URI.encode_www_form({ limit: limit, before: before, after: after, around: around }.compact)
     OnyxCord::REST.request(
       :channels_cid_messages,
       channel_id,
       :get,
       "#{OnyxCord::REST.api_base}/channels/#{channel_id}/messages?#{query_string}",
-      Authorization: token
+      headers: { Authorization: token }
     )
   end
 
@@ -24,7 +34,7 @@ module OnyxCord::REST::Channel
       channel_id,
       :get,
       "#{OnyxCord::REST.api_base}/channels/#{channel_id}/messages/#{message_id}",
-      Authorization: token
+      headers: { Authorization: token }
     )
   end
 
@@ -37,36 +47,37 @@ module OnyxCord::REST::Channel
     components = OnyxCord::MessageComponents.payload(components) unless components.nil?
     flags = OnyxCord::MessageComponents.apply_v2_flag(flags, components)
     OnyxCord::MessagePayload.validate!(content: message, embeds: embeds, components: components, flags: flags, attachments: attachments, poll: poll)
-    body = { content: message, tts: tts == true, embeds: embeds, nonce: nonce, allowed_mentions: allowed_mentions, message_reference: message_reference, components: components, attachments: attachments ? attachment_payload(attachments) : nil, flags: flags, enforce_nonce: enforce_nonce, poll: poll }.compact
+    payload = { content: message, tts: tts == true, embeds: embeds, nonce: nonce, allowed_mentions: allowed_mentions, message_reference: message_reference, components: components, attachments: attachments ? attachment_payload(attachments) : nil, flags: flags, enforce_nonce: enforce_nonce, poll: poll }.compact
     body = if attachments
-             multipart_body(body, attachments)
+             multipart_body(payload, attachments)
            else
-             body.to_json
+             payload.to_json
            end
 
     headers = { Authorization: token }
     headers[:content_type] = :json unless attachments
 
     OnyxCord::REST.request(
-      :channels_cid_messages_mid,
+      :channels_cid_messages,
       channel_id,
       :post,
       "#{OnyxCord::REST.api_base}/channels/#{channel_id}/messages",
-      body,
-      **headers
+      body: body,
+      headers: headers
     )
   end
 
   # Send a file as a message to a channel
   # https://discord.com/developers/docs/resources/channel#upload-file
   def upload_file(token, channel_id, file, caption: nil, tts: false)
+    body = { file: file, content: caption, tts: tts }
     OnyxCord::REST.request(
-      :channels_cid_messages_mid,
+      :channels_cid_messages,
       channel_id,
       :post,
       "#{OnyxCord::REST.api_base}/channels/#{channel_id}/messages",
-      { file: file, content: caption, tts: tts },
-      Authorization: token
+      body: body,
+      headers: { Authorization: token }
     )
   end
 
@@ -82,9 +93,8 @@ module OnyxCord::REST::Channel
       channel_id,
       :patch,
       "#{OnyxCord::REST.api_base}/channels/#{channel_id}/messages/#{message_id}",
-      body.reject { |_, v| v == :undef }.to_json,
-      Authorization: token,
-      content_type: :json
+      body: body.reject { |_, v| v == :undef }.to_json,
+      headers: { Authorization: token, content_type: :json }
     )
   end
 
@@ -96,8 +106,7 @@ module OnyxCord::REST::Channel
       channel_id,
       :delete,
       "#{OnyxCord::REST.api_base}/channels/#{channel_id}/messages/#{message_id}",
-      Authorization: token,
-      'X-Audit-Log-Reason': reason
+      headers: { Authorization: token, 'X-Audit-Log-Reason': reason }
     )
   end
 
@@ -109,22 +118,34 @@ module OnyxCord::REST::Channel
       channel_id,
       :post,
       "#{OnyxCord::REST.api_base}/channels/#{channel_id}/messages/#{message_id}/crosspost",
-      Authorization: token
+      headers: { Authorization: token }
     )
   end
 
   # Delete messages in bulk
   # https://discord.com/developers/docs/resources/channel#bulk-delete-messages
   def bulk_delete_messages(token, channel_id, messages = [], reason = nil)
+    messages = messages.uniq
+    unless messages.size >= 2 && messages.size <= 100
+      raise ArgumentError, "Must provide between 2 and 100 message IDs, got #{messages.size}"
+    end
+
+    # Discord rejects messages older than 14 days in bulk delete
+    two_weeks_ago = (Time.now - 14 * 24 * 60 * 60).to_i << 22
+    messages.each do |msg_id|
+      id = msg_id.to_i
+      if id < two_weeks_ago
+        raise ArgumentError, "Message #{msg_id} is older than 14 days and cannot be bulk-deleted"
+      end
+    end
+
     OnyxCord::REST.request(
       :channels_cid_messages_bulk_delete,
       channel_id,
       :post,
       "#{OnyxCord::REST.api_base}/channels/#{channel_id}/messages/bulk-delete",
-      { messages: messages }.to_json,
-      Authorization: token,
-      content_type: :json,
-      'X-Audit-Log-Reason': reason
+      body: { messages: messages.map(&:to_s) }.to_json,
+      headers: { Authorization: token, content_type: :json, 'X-Audit-Log-Reason': reason }
     )
   end
 end

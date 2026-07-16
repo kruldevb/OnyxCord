@@ -50,11 +50,26 @@ RSpec.describe OnyxCord::Interactions::Command do
   end
 
   describe '.primary_entry_point' do
-    it 'creates a primary entry point command' do
-      cmd = described_class.primary_entry_point('launch', description: 'Launch the activity')
+    it 'creates a primary entry point command with handler' do
+      cmd = described_class.primary_entry_point('launch', description: 'Launch the activity', handler: :APP_HANDLER)
       expect(cmd.name).to eq('launch')
       expect(cmd.description).to eq('Launch the activity')
       expect(cmd.type).to eq(:primary_entry_point)
+      expect(cmd.handler).to eq(:APP_HANDLER)
+    end
+
+    it 'raises without handler' do
+      expect {
+        described_class.primary_entry_point('launch', description: 'Launch')
+      }.to raise_error(ArgumentError, /handler/)
+    end
+
+    it 'raises with options' do
+      expect {
+        described_class.primary_entry_point('launch', description: 'Launch', handler: :APP_HANDLER) do |cmd|
+          cmd.string(:foo, 'bar')
+        end
+      }.to raise_error(ArgumentError, /options/)
     end
   end
 
@@ -66,9 +81,10 @@ RSpec.describe OnyxCord::Interactions::Command do
     end
 
     it 'includes description for primary_entry_point' do
-      cmd = described_class.primary_entry_point('test', description: 'A test')
+      cmd = described_class.primary_entry_point('test', description: 'A test', handler: :APP_HANDLER)
       hash = cmd.to_h
       expect(hash[:description]).to eq('A test')
+      expect(hash[:handler]).to eq(:APP_HANDLER)
     end
 
     it 'does not include description for user commands' do
@@ -96,6 +112,17 @@ RSpec.describe OnyxCord::Interactions::Command do
     it 'includes default_member_permissions as string' do
       cmd = described_class.chat_input('test', description: 'Test', default_member_permissions: 8)
       expect(cmd.to_h[:default_member_permissions]).to eq('8')
+    end
+
+    it 'normalizes default_member_permissions from symbols array via Permissions.bits' do
+      cmd = described_class.chat_input('test', description: 'Test', default_member_permissions: [:ban_members])
+      expect(cmd.to_h[:default_member_permissions]).to eq(OnyxCord::Permissions.bits([:ban_members]).to_s)
+      expect(cmd.to_h[:default_member_permissions]).not_to eq('[:ban_members]')
+    end
+
+    it 'normalizes default_member_permissions from single symbol' do
+      cmd = described_class.chat_input('test', description: 'Test', default_member_permissions: :ban_members)
+      expect(cmd.to_h[:default_member_permissions]).to eq(OnyxCord::Permissions.bits([:ban_members]).to_s)
     end
 
     it 'includes dm_permission (default true)' do
@@ -175,49 +202,49 @@ RSpec.describe OnyxCord::Interactions::Command do
       cmd = described_class.chat_input('echo', description: 'Echo back')
       cmd.string(:message, 'The message to echo', required: true)
       expect(cmd.options.size).to eq(1)
-      expect(cmd.options.first.type).to eq(3)
+      expect(cmd.options.first.type).to eq(:string)
     end
 
     it 'defines integer options' do
       cmd = described_class.chat_input('calc', description: 'Calculate')
       cmd.integer(:num, 'A number', min_value: 0, max_value: 100)
       expect(cmd.options.size).to eq(1)
-      expect(cmd.options.first.type).to eq(4)
+      expect(cmd.options.first.type).to eq(:integer)
     end
 
     it 'defines boolean options' do
       cmd = described_class.chat_input('toggle', description: 'Toggle setting')
       cmd.boolean(:enabled, 'Enable?')
       expect(cmd.options.size).to eq(1)
-      expect(cmd.options.first.type).to eq(5)
+      expect(cmd.options.first.type).to eq(:boolean)
     end
 
     it 'defines user options' do
       cmd = described_class.chat_input('kick', description: 'Kick user')
       cmd.user(:target, 'User to kick', required: true)
       expect(cmd.options.size).to eq(1)
-      expect(cmd.options.first.type).to eq(6)
+      expect(cmd.options.first.type).to eq(:user)
     end
 
     it 'defines channel options with types' do
       cmd = described_class.chat_input('post', description: 'Post message')
       cmd.channel(:channel, 'Target channel', types: %i[text news])
       expect(cmd.options.size).to eq(1)
-      expect(cmd.options.first.type).to eq(7)
+      expect(cmd.options.first.type).to eq(:channel)
     end
 
     it 'defines number options' do
       cmd = described_class.chat_input('set', description: 'Set value')
       cmd.number(:value, 'The value', min_value: 0.0, max_value: 1.0)
       expect(cmd.options.size).to eq(1)
-      expect(cmd.options.first.type).to eq(10)
+      expect(cmd.options.first.type).to eq(:number)
     end
 
     it 'defines attachment options' do
       cmd = described_class.chat_input('upload', description: 'Upload file')
       cmd.attachment(:file, 'File to upload', required: true)
       expect(cmd.options.size).to eq(1)
-      expect(cmd.options.first.type).to eq(11)
+      expect(cmd.options.first.type).to eq(:attachment)
     end
   end
 end

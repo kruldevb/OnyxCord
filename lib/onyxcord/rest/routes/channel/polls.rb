@@ -13,7 +13,7 @@ module OnyxCord::REST::Channel
       channel_id,
       :get,
       "#{OnyxCord::REST.api_base}/channels/#{channel_id}/polls/#{message_id}/answers/#{answer_id}?#{query}",
-      Authorization: token
+      headers: { Authorization: token }
     )
   end
 
@@ -25,8 +25,7 @@ module OnyxCord::REST::Channel
       channel_id,
       :post,
       "#{OnyxCord::REST.api_base}/channels/#{channel_id}/polls/#{message_id}/expire",
-      nil,
-      Authorization: token
+      headers: { Authorization: token }
     )
   end
 end

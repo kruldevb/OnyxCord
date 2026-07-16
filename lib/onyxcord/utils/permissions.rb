@@ -3,210 +3,351 @@
 module OnyxCord
   # List of permissions Discord uses
   class Permissions
-    # This hash maps bit positions to logical permissions.
-    FLAGS = {
-      # Bit => Permission # Value
-      0 => :create_instant_invite,        # 1
-      1 => :kick_members,                 # 2
-      2 => :ban_members,                  # 4
-      3 => :administrator,                # 8
-      4 => :manage_channels,              # 16
-      5 => :manage_server,                # 32
-      6 => :add_reactions,                # 64
-      7 => :view_audit_log,               # 128
-      8 => :priority_speaker,             # 256
-      9 => :stream,                       # 512
-      10 => :read_messages,               # 1024
-      11 => :send_messages,               # 2048
-      12 => :send_tts_messages,           # 4096
-      13 => :manage_messages,             # 8192
-      14 => :embed_links,                 # 16384
-      15 => :attach_files,                # 32768
-      16 => :read_message_history,        # 65536
-      17 => :mention_everyone,            # 131072
-      18 => :use_external_emoji,          # 262144
-      19 => :view_server_insights,        # 524288
-      20 => :connect,                     # 1048576
-      21 => :speak,                       # 2097152
-      22 => :mute_members,                # 4194304
-      23 => :deafen_members,              # 8388608
-      24 => :move_members,                # 16777216
-      25 => :use_voice_activity,          # 33554432
-      26 => :change_nickname,             # 67108864
-      27 => :manage_nicknames,            # 134217728
-      28 => :manage_roles,                # 268435456, also Manage Permissions
-      29 => :manage_webhooks,             # 536870912
-      30 => :manage_emojis,               # 1073741824, also Manage Stickers
-      31 => :use_slash_commands,          # 2147483648
-      32 => :request_to_speak,            # 4294967296
-      33 => :manage_events,               # 8589934592
-      34 => :manage_threads,              # 17179869184
-      35 => :use_public_threads,          # 34359738368
-      36 => :use_private_threads,         # 68719476736
-      37 => :use_external_stickers,       # 137438953472
-      38 => :send_messages_in_threads,    # 274877906944
-      39 => :use_embedded_activities,     # 549755813888
-      40 => :moderate_members,            # 1099511627776
-      41 => :view_monetization_analytics, # 2199023255552
-      42 => :use_soundboard,              # 4398046511104
-      43 => :create_server_expressions,   # 8796093022208
-      44 => :create_scheduled_events,     # 17592186044416
-      45 => :use_external_sounds,         # 35184372088832
-      46 => :send_voice_messages,         # 70368744177664
-      49 => :send_polls,                  # 562949953421312
-      50 => :use_external_apps,           # 1125899906842624
-      51 => :pin_messages,                # 2251799813685248
-      52 => :bypass_slowmode              # 4503599627370496
+    # Permission flag registry: canonical_name => bit_position
+    REGISTRY = {
+      create_instant_invite:      0,
+      kick_members:               1,
+      ban_members:                2,
+      administrator:              3,
+      manage_channels:            4,
+      manage_guild:               5,
+      add_reactions:              6,
+      view_audit_log:             7,
+      priority_speaker:           8,
+      stream:                     9,
+      view_channel:               10,
+      send_messages:              11,
+      send_tts_messages:          12,
+      manage_messages:            13,
+      embed_links:                14,
+      attach_files:               15,
+      read_message_history:       16,
+      mention_everyone:           17,
+      use_external_emojis:        18,
+      view_guild_insights:        19,
+      connect:                    20,
+      speak:                      21,
+      mute_members:               22,
+      deafen_members:             23,
+      move_members:               24,
+      use_voice_activity:         25,
+      change_nickname:            26,
+      manage_nicknames:           27,
+      manage_roles:               28,
+      manage_webhooks:            29,
+      manage_guild_expressions:   30,
+      use_application_commands:   31,
+      request_to_speak:           32,
+      manage_events:              33,
+      manage_threads:             34,
+      create_public_threads:      35,
+      create_private_threads:     36,
+      use_external_stickers:      37,
+      send_messages_in_threads:   38,
+      use_embedded_activities:    39,
+      moderate_members:           40,
+      view_monetization_analytics: 41,
+      use_soundboard:             42,
+      create_guild_expressions:   43,
+      create_events:              44,
+      use_external_sounds:        45,
+      send_voice_messages:        46,
+      set_voice_channel_status:   48,
+      send_polls:                 49,
+      use_external_apps:          50,
+      pin_messages:               51,
+      bypass_slowmode:            52,
     }.freeze
 
-    FLAGS.each do |position, flag|
-      attr_reader flag
+    # Canonical name aliases for deprecated/legacy names.
+    # The canonical name is the key, aliases are the values.
+    CANONICAL_ALIASES = {
+      manage_guild:              %i[manage_server],
+      view_channel:              %i[read_messages],
+      use_external_emojis:       %i[use_external_emoji],
+      manage_guild_expressions:  %i[manage_emojis manage_stickers],
+      use_application_commands:  %i[use_slash_commands],
+      create_public_threads:     %i[use_public_threads],
+      create_private_threads:    %i[use_private_threads],
+      create_guild_expressions:  %i[create_server_expressions],
+      create_events:             %i[create_scheduled_events],
+      view_guild_insights:       %i[view_server_insights],
+    }.freeze
 
-      define_method "can_#{flag}=" do |value|
-        new_bits = @bits
-        if value
-          new_bits |= (1 << position)
-        else
-          new_bits &= ~(1 << position)
-        end
-        @writer&.write(new_bits)
-        @bits = new_bits
-        init_vars
-      end
-    end
+    # Reverse lookup: any recognized name (canonical or alias) => canonical_name
+    NAME_MAP = REGISTRY.each_with_object({}) do |(canonical, position), map|
+      map[canonical] = canonical
+      (CANONICAL_ALIASES[canonical] || []).each { |alias_name| map[alias_name] = canonical }
+    end.freeze
 
-    alias_method :can_administrate=, :can_administrator=
-    alias_method :administrate, :administrator
+    # Reverse lookup: canonical_name => bit_mask
+    BIT_MAP = REGISTRY.each_with_object({}) do |(canonical, position), map|
+      map[canonical] = 1 << position
+    end.freeze
 
+    # @deprecated Use {REGISTRY} or {BIT_MAP} instead.
+    # Maintained for backward-compatibility: position => symbol.
+    FLAGS = REGISTRY.invert.freeze
+
+    # Static map of implicit permissions that are unusable when certain
+    # prerequisite permissions are denied.
+    IMPLICIT_DEPENDENCIES = {
+      view_channel: %i[
+        send_messages send_tts_messages manage_messages embed_links attach_files
+        read_message_history mention_everyone use_external_emojis add_reactions
+        use_external_stickers use_embedded_activities use_application_commands connect
+        speak priority_speaker stream use_voice_activity mute_members deafen_members
+        move_members request_to_speak set_voice_channel_status create_instant_invite
+        manage_webhooks manage_guild_expressions create_guild_expressions manage_events
+        create_events manage_threads create_public_threads create_private_threads
+        send_messages_in_threads send_polls use_external_apps
+      ].freeze,
+      send_messages: %i[
+        send_tts_messages embed_links attach_files mention_everyone send_polls
+      ].freeze,
+      connect: %i[
+        speak priority_speaker stream use_voice_activity mute_members deafen_members
+        move_members request_to_speak set_voice_channel_status
+      ].freeze,
+    }.freeze
+
+    IMPLICIT_DEPENDENCIES.each_value(&:freeze)
+
+    define_method(:can_administrate=) { |value| send(:can_administrator=, value) }
+
+    # @!attribute [r] bits
+    #   @return [Integer] raw bitset
     attr_reader :bits
 
-    # Set the raw bitset of this permission object
-    # @param bits [Integer] A number whose binary representation is the desired bitset.
-    def bits=(bits)
-      @bits = bits
-      init_vars
-    end
+    # @!visibility private
+    attr_reader :writer
 
-    # Initialize the instance variables based on the bitset.
-    def init_vars
-      FLAGS.each do |position, flag|
-        flag_set = (@bits >> position).allbits?(0x1)
-        instance_variable_set "@#{flag}", flag_set
-      end
-    end
-
-    # Return the corresponding bits for an array of permission flag symbols.
-    # This is a class method that can be used to calculate bits instead
-    # of instancing a new Permissions object.
-    # @example Get the bits for permissions that could allow/deny read messages, connect, and speak
-    #   Permissions.bits [:read_messages, :connect, :speak] #=> 3146752
-    # @param list [Array<Symbol>]
-    # @return [Integer] the computed permissions integer
-    def self.bits(list)
-      value = 0
-
-      FLAGS.each do |position, flag|
-        value += 2**position if list.include? flag
-      end
-
-      value
-    end
-
-    # Create a new Permissions object either as a blank slate to add permissions to (for example for
-    #   {Channel#define_overwrite}) or from existing bit data to read out.
-    # @example Create a permissions object that could allow/deny read messages, connect, and speak by setting flags
-    #   permission = Permissions.new
-    #   permission.can_read_messages = true
-    #   permission.can_connect = true
-    #   permission.can_speak = true
-    # @example Create a permissions object that could allow/deny read messages, connect, and speak by an array of symbols
-    #   Permissions.new [:read_messages, :connect, :speak]
-    # @param bits [String, Integer, Array<Symbol>] The permission bits that should be set from the beginning, or an array of permission flag symbols
-    # @param writer [RoleWriter] The writer that should be used to update data when a permission is set.
+    # Create a new Permissions object.
+    # @param bits [Integer, String, Array<Symbol>] permission bits or list of symbols
+    # @param writer [Object, nil] an object that responds to #write for persisting changes
     def initialize(bits = 0, writer = nil)
       @writer = writer
 
-      @bits = if bits.is_a? Array
+      @bits = case bits
+              when nil
+                0
+              when Integer
+                raise ArgumentError, 'Permission bits cannot be negative' if bits.negative?
+
+                bits
+              when String
+                Integer(bits, exception: true)
+              when Array
+                bits = bits.map do |sym|
+                  resolved = NAME_MAP[sym.to_sym] or raise ArgumentError, "Unknown permission: #{sym.inspect}"
+                  resolved
+                end
                 self.class.bits(bits)
               else
-                bits.to_i
+                raise ArgumentError, "Expected Integer, String, or Array, got #{bits.class}"
               end
 
       init_vars
     end
 
-    # Return an array of permission flag symbols for this class's permissions
-    # @example Get the permissions for the bits "9"
-    #   permissions = Permissions.new(9)
-    #   permissions.defined_permissions #=> [:create_instant_invite, :administrator]
-    # @return [Array<Symbol>] the permissions
-    def defined_permissions
-      FLAGS.filter_map { |value, name| @bits.anybits?((1 << value)) ? name : nil }
+    # Build bits from an array of permission names.
+    # @param list [Array<Symbol>]
+    # @return [Integer]
+    def self.bits(list)
+      value = 0
+      list.each do |name|
+        canonical = NAME_MAP[name] or raise ArgumentError, "Unknown permission: #{name.inspect}"
+        value |= BIT_MAP[canonical]
+      end
+      value
     end
 
-    # Comparison based on permission bits
+    # Set raw bitset and rebuild cached predicates.
+    def bits=(bits)
+      raise ArgumentError, 'Permission bits cannot be negative' if bits.negative?
+
+      @bits = Integer(bits)
+      init_vars
+    end
+
+    # Mutate the object via a batch of boolean permission changes without persisting.
+    # @param changes [Hash{Symbol => Boolean}]
+    # @return [self]
+    def assign(changes)
+      changes.each do |name, value|
+        canonical = NAME_MAP[name] or raise ArgumentError, "Unknown permission: #{name.inspect}"
+        mask = BIT_MAP[canonical]
+        if value
+          @bits |= mask
+        else
+          @bits &= ~mask
+        end
+      end
+      init_vars
+      self
+    end
+
+    # Mutate and persist via writer.
+    # @param changes [Hash{Symbol => Boolean}]
+    # @return [self]
+    def assign!(changes)
+      assign(changes)
+      @writer&.write(@bits)
+      self
+    end
+
+    # Persist current bits without changing state.
+    # @return [void]
+    def write_bits
+      @writer&.write(@bits)
+    end
+
+    # Return the permission flag names currently set.
+    # @return [Array<Symbol>]
+    def defined_permissions
+      BIT_MAP.filter_map { |canonical, mask| canonical if (@bits & mask) != 0 }
+    end
+
+    # Check whether a given permission is set.
+    # @param action [Symbol] canonical or alias permission name
+    # @return [Boolean]
+    def permission?(action)
+      canonical = canonical_name(action)
+      raise ArgumentError, "Unknown permission: #{action.inspect}" unless canonical
+
+      (@bits & BIT_MAP[canonical]) != 0
+    end
+
+    # Check with an allowlist: only valid permission names pass.
+    def defined_permission?(action)
+      permission?(action)
+    end
+
+    # Comparison based on bits
     def ==(other)
       return false unless other.is_a?(OnyxCord::Permissions)
 
       bits == other.bits
     end
+
+    # Initialize instance variable predicates from bitset.
+    def init_vars
+      BIT_MAP.each do |canonical, mask|
+        instance_variable_set("@#{canonical}", (@bits & mask) != 0)
+      end
+    end
+
+    private
+
+    def canonical_name(action)
+      NAME_MAP[action.to_sym]
+    end
+
+    public
+
+    # -------------------------------------------------------------------
+    # Dynamic getters, setters, and predicate methods
+    # -------------------------------------------------------------------
+    REGISTRY.each do |canonical, position|
+      attr_reader canonical
+
+      # Setter with persistence
+      define_method("can_#{canonical}=") do |value|
+        mask = BIT_MAP[canonical]
+        if value
+          @bits |= mask
+        else
+          @bits &= ~mask
+        end
+        instance_variable_set("@#{canonical}", value)
+        write_bits
+      end
+
+      # Predicate
+      define_method("can_#{canonical}?") do
+        (@bits & BIT_MAP[canonical]) != 0
+      end
+    end
+
+    # Dynamically generate aliases for deprecated/legacy names.
+    CANONICAL_ALIASES.each do |canonical, aliases|
+      aliases.each do |alias_name|
+        alias_method "can_#{alias_name}=",  "can_#{canonical}="
+        alias_method "can_#{alias_name}?",  "can_#{canonical}?"
+        alias_method alias_name,            canonical
+      end
+    end
+
+    alias_method :administrate, :administrator
   end
 
-  # Mixin to calculate resulting permissions from overrides etc.
+  # -------------------------------------------------------------------
+  # PermissionCalculator — mixin for members / profiles
+  # -------------------------------------------------------------------
   module PermissionCalculator
-    # Checks whether this user can do the particular action, regardless of whether it has the permission defined,
-    # through for example being the server owner or having the Manage Roles permission
-    # @param action [Symbol] The permission that should be checked. See also {Permissions::FLAGS} for a list.
-    # @param channel [Channel, nil] If channel overrides should be checked too, this channel specifies where the overrides should be checked.
-    # @example Check if the bot can send messages to a specific channel in a server.
-    #   bot_profile = bot.profile.on(event.server)
-    #   can_send_messages = bot_profile.permission?(:send_messages, channel)
-    # @return [true, false] whether or not this user has the permission.
-    def permission?(action, channel = nil)
-      # If the member is the server owner, it irrevocably has all permissions.
+    # @param time [Time, nil] custom "now" for testing timeouts (default: Time.now)
+    # @return [Boolean]
+    def permission?(action, channel = nil, time: nil)
+      now = time || Time.now
+      defined = lambda do |act, ch = channel|
+        defined_permission?(act, ch, time: now)
+      end
+
+      # Owner irrevocably has all permissions
       return true if owner?
 
-      # First, check whether the user has Manage Roles defined.
-      # (Coincidentally, Manage Permissions is the same permission as Manage Roles, and a
-      # Manage Permissions deny overwrite will override Manage Roles, so we can just check for
-      # Manage Roles once and call it a day.)
-      return true if defined_permission?(:administrator, channel)
+      # Timeout strips everything except view_channel and read_message_history
+      # unless owner or administrator.
+      if respond_to?(:communication_disabled?) && communication_disabled? &&
+         !owner? && !defined.call(:administrator)
+        canonical = OnyxCord::Permissions::NAME_MAP[action.to_sym]
+        return false unless canonical
 
-      # Otherwise, defer to defined_permission
-      defined_permission?(action, channel)
+        return %i[view_channel read_message_history].include?(canonical)
+      end
+
+      # Administrator bypass
+      return true if defined.call(:administrator)
+
+      raw = defined.call(action)
+      return false unless raw
+
+      return apply_implicit_denies(action, channel) unless time
+      apply_implicit_denies(action, channel, time: time)
     end
 
-    # Checks whether this user has a particular permission defined (i.e. not implicit, through for example
-    # Manage Roles)
-    # @param action [Symbol] The permission that should be checked. See also {Permissions::FLAGS} for a list.
-    # @param channel [Channel, nil] If channel overrides should be checked too, this channel specifies where the overrides should be checked.
-    # @example Check if a member has the Manage Channels permission defined in the server.
-    #   has_manage_channels = member.defined_permission?(:manage_channels)
-    # @return [true, false] whether or not this user has the permission defined.
-    def defined_permission?(action, channel = nil)
-      # For slash commands we may not have access to the server or role
-      # permissions. In this case we use the permissions given to us by the
-      # interaction. If attempting to check against a specific channel the check
-      # is skipped.
-      return @permissions.__send__(action) if @permissions && channel.nil?
+    # Check whether the permission bit is actually set, considering
+    # role and channel overwrites.
+    # @param action [Symbol]
+    # @param channel [Channel, nil]
+    # @param time [Time, nil] custom "now" for testing timeouts
+    # @return [Boolean]
+    def defined_permission?(action, channel = nil, time: Time.now)
+      canonical = OnyxCord::Permissions::NAME_MAP[action.to_sym]
+      raise ArgumentError, "Unknown permission: #{action.inspect}" unless canonical
 
-      # Get the permission the user's roles have
-      role_permission = defined_role_permission?(action, channel)
+      # interaction-provided permissions fallback (no server context)
+      return @permissions.permission?(action) if @permissions && channel.nil?
 
-      # Once we have checked the role permission, we have to check the channel overrides for the
-      # specific user
-      user_specific_override = permission_overwrite(action, channel, id) # Use the ID reader as members have no ID instance variable
+      # Compute effective permission via Discord's official overwrite order
+      raw = defined_role_permission?(canonical, channel)
+      member_override = permission_overwrite(canonical, channel, resolve_id)
+      return raw unless member_override
 
-      # Merge the two permissions - if an override is defined, it has to be allow, otherwise we only care about the role
-      return role_permission unless user_specific_override
-
-      user_specific_override == :allow
+      member_override == :allow
     end
 
-    # Define methods for querying permissions
-    OnyxCord::Permissions::FLAGS.each_value do |flag|
-      define_method "can_#{flag}?" do |channel = nil|
-        permission? flag, channel
+    # Predicate shortcuts
+    OnyxCord::Permissions::REGISTRY.each_key do |canonical|
+      define_method("can_#{canonical}?") do |channel = nil|
+        permission?(canonical, channel)
+      end
+    end
+
+    # Deprecated alias predicates for legacy names
+    OnyxCord::Permissions::CANONICAL_ALIASES.each do |canonical, aliases|
+      aliases.each do |alias_name|
+        alias_method "can_#{alias_name}?", "can_#{canonical}?"
       end
     end
 
@@ -214,42 +355,82 @@ module OnyxCord
 
     private
 
+    # Apply Discord's implicit permission dependencies.
+    def apply_implicit_denies(action, channel = nil, time: Time.now)
+      canonical = OnyxCord::Permissions::NAME_MAP[action.to_sym]
+      return true unless canonical
+
+      OnyxCord::Permissions::IMPLICIT_DEPENDENCIES.each do |prerequisite, dependents|
+        next unless dependents.include?(canonical)
+
+        return false unless defined_permission?(prerequisite, channel, time: time)
+      end
+      true
+    end
+
+    # Permission overwrite algorithm following Discord's official order:
+    #   1. Base permissions: OR @everyone base + all role bases
+    #   2. Apply @everyone overwrites (allow/deny)
+    #   3. Apply all role overwrites:
+    #      a. Combine all role denies (OR)
+    #      b. Combine all role allows (OR)
+    #      c. Apply denies first, then allows
+    #   4. Apply member overwrite
+    #
+    # Role position does NOT decide overwrite conflicts per Discord docs.
     def defined_role_permission?(action, channel)
-      roles_to_check = [@server.everyone_role] + roles
+      everyone = @server.everyone_role
 
-      # For each role, check if
-      #   (1) the channel explicitly allows or permits an action for the role and
-      #   (2) if the user is allowed to do the action if the channel doesn't specify
-      roles_to_check.sort_by(&:position).reduce(false) do |can_act, role|
-        # Get the override defined for the role on the channel
-        channel_allow = permission_overwrite(action, channel, role.id)
-        if channel_allow
-          # If the channel has an override, check whether it is an allow - if yes,
-          # the user can act, if not, it can't
-          break true if channel_allow == :allow
+      # Step 1: base permissions
+      base_bits = everyone.permissions.bits
+      roles.each { |role| base_bits |= role.permissions.bits }
 
-          false
-        else
-          # Otherwise defer to the role
-          role.permissions.instance_variable_get("@#{action}") || can_act
+      # Convert to boolean for specific action
+      action_mask = OnyxCord::Permissions::BIT_MAP[action]
+      return false unless action_mask
+
+      is_set = (base_bits & action_mask) != 0
+
+      # Step 2: @everyone overwrite
+      if channel
+        everyone_override = permission_overwrite(action, channel, everyone.id)
+        case everyone_override
+        when :allow then is_set = true
+        when :deny  then is_set = false
         end
       end
+
+      # Step 3: combine all role overwrites
+      if channel
+        role_denies = 0
+        role_allows = 0
+        roles.each do |role|
+          override = permission_overwrite(action, channel, role.id)
+          case override
+          when :allow then role_allows |= action_mask
+          when :deny  then role_denies |= action_mask
+          end
+        end
+
+        is_set = false if (role_denies & action_mask) != 0
+        is_set = true  if (role_allows & action_mask) != 0
+      end
+
+      is_set
     end
 
     def permission_overwrite(action, channel, id)
-      # If no overwrites are defined, or no channel is set, no overwrite will be present
       return nil unless channel && channel.permission_overwrites[id]
 
-      # Otherwise, check the allow and deny objects
-      allow = channel.permission_overwrites[id].allow
-      deny = channel.permission_overwrites[id].deny
-      if allow.instance_variable_get("@#{action}")
+      ow = channel.permission_overwrites[id]
+      mask = OnyxCord::Permissions::BIT_MAP[action]
+      return nil unless mask
+
+      if (ow.allow.bits & mask) != 0
         :allow
-      elsif deny.instance_variable_get("@#{action}")
+      elsif (ow.deny.bits & mask) != 0
         :deny
       end
-
-      # If there's no variable defined, nil will implicitly be returned
     end
   end
 end
