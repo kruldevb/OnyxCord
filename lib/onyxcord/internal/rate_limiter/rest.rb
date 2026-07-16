@@ -39,11 +39,14 @@ module OnyxCord
             touch(bucket)
           end
 
+          # Only wait if remaining is 0 AND reset_after is > 2 seconds
+          # This avoids premature blocking while still respecting hard limits
           return unless headers[:x_ratelimit_remaining] == '0'
 
           wait_seconds = headers[:x_ratelimit_reset_after].to_f
-          return unless wait_seconds.positive?
+          return unless wait_seconds > 2.0
 
+          OnyxCord::LOGGER.warn("Rate limit remaining=0, waiting #{wait_seconds.round(2)}s")
           sync_wait(wait_seconds, mutex_for(route, major_parameter))
         end
 
